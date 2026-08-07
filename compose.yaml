@@ -109,10 +109,15 @@ services:
       AI_INFRA_AGENT_TOKEN: ${AI_INFRA_AGENT_TOKEN:-}
       AI_INFRA_AGENT_HEARTBEAT_SECONDS: 10
       AI_INFRA_AGENT_TLS_VERIFY: "true"
+      AI_INFRA_AGENT_ALLOWED_MODEL_DIRECTORIES: '["/models"]'
+      AI_INFRA_AGENT_DEFAULT_MODEL_DIRECTORY: /models
+      AI_INFRA_AGENT_MODEL_SCAN_INTERVAL_SECONDS: 10
     depends_on:
       api:
         condition: service_healthy
     read_only: true
+    volumes:
+      - ./apps/agent/tests/fixtures/models:/models:ro
     tmpfs:
       - /tmp
     cap_drop:

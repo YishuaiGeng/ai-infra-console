@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+from functools import partial
 
 from ai_infra_agent import __version__
 from ai_infra_agent.client import CentralClient
@@ -26,21 +27,22 @@ def parser() -> argparse.ArgumentParser:
 
 async def async_command(command: str) -> None:
     settings = get_settings()
+    collector = partial(collect_snapshot, settings)
     if command == "collect":
-        print(json.dumps(collect_snapshot().model_dump(mode="json"), indent=2, sort_keys=True))
+        print(json.dumps(collector().model_dump(mode="json"), indent=2, sort_keys=True))
         return
     async with CentralClient(settings) as client:
         if command == "register":
-            result = await client.register(await asyncio.to_thread(collect_snapshot))
+            result = await client.register(await asyncio.to_thread(collector))
             print(str(result.server_id))
             return
         if command == "heartbeat":
-            result = await client.heartbeat(await asyncio.to_thread(collect_snapshot))
+            result = await client.heartbeat(await asyncio.to_thread(collector))
             print(str(result.server_id))
             return
         runner = AgentRunner(
             client,
-            collect_snapshot,
+            collector,
             heartbeat_seconds=settings.heartbeat_seconds,
         )
         await runner.run()

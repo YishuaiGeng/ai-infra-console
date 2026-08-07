@@ -1,20 +1,28 @@
 from datetime import UTC, datetime
 
 from ai_infra_agent import __version__
+from ai_infra_agent.collectors.models import collect_model_inventory
 from ai_infra_agent.collectors.nvidia import collect_gpu_snapshot
 from ai_infra_agent.collectors.runtimes import collect_runtime_snapshot
 from ai_infra_agent.collectors.system import collect_host_snapshot
+from ai_infra_agent.config import AgentSettings, get_settings
 from ai_infra_agent.schemas import AgentSnapshot
 
 
-def collect_snapshot() -> AgentSnapshot:
+def collect_snapshot(settings: AgentSettings | None = None) -> AgentSnapshot:
+    resolved_settings = settings or get_settings()
     runtimes = collect_runtime_snapshot()
     host = collect_host_snapshot(runtimes)
     gpus, gpu_collector = collect_gpu_snapshot()
+    model_inventory = collect_model_inventory(
+        resolved_settings,
+        ollama_available=runtimes.ollama.available,
+    )
     return AgentSnapshot(
         collected_at=datetime.now(UTC),
         agent_version=__version__,
         host=host,
         gpus=gpus,
         gpu_collector=gpu_collector,
+        model_inventory=model_inventory,
     )

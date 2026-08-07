@@ -12,6 +12,18 @@ export function formatNumber(value: number, maximumFractionDigits = 1) {
   );
 }
 
+export function formatBytes(value: number | null) {
+  if (value === null) return "--";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let amount = value;
+  let unit = 0;
+  while (amount >= 1024 && unit < units.length - 1) {
+    amount /= 1024;
+    unit += 1;
+  }
+  return `${formatNumber(amount, amount >= 10 ? 1 : 2)} ${units[unit]}`;
+}
+
 export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",

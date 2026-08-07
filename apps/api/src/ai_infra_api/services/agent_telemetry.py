@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select, update
@@ -12,6 +13,13 @@ from ai_infra_api.db.models import (
     ServerMetric,
 )
 from ai_infra_api.schemas.agent import AgentSnapshot, GPUProcessSnapshot
+from ai_infra_api.services.model_inventory import persist_model_inventory
+
+
+@dataclass(slots=True)
+class AgentPersistenceResult:
+    server: Server
+    model_inventory_changed: bool
 
 
 async def persist_agent_snapshot(
@@ -20,7 +28,7 @@ async def persist_agent_snapshot(
     snapshot: AgentSnapshot,
     *,
     received_at: datetime | None = None,
-) -> Server:
+) -> AgentPersistenceResult:
     now = received_at or datetime.now(UTC)
     server = await session.get(Server, agent.server_id)
     if server is None:
@@ -147,9 +155,14 @@ async def persist_agent_snapshot(
             )
         )
 
+    inventory_result = await persist_model_inventory(session, server, snapshot.model_inventory)
+
     await session.commit()
     await session.refresh(server)
-    return server
+    return AgentPersistenceResult(
+        server=server,
+        model_inventory_changed=inventory_result.changed,
+    )
 
 
 async def mark_stale_servers_offline(

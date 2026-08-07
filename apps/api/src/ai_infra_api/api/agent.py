@@ -7,7 +7,10 @@ from ai_infra_api.dependencies import CurrentAgent, DatabaseSession
 from ai_infra_api.schemas.agent import AgentReportResponse, AgentSnapshot
 from ai_infra_api.services.agent_telemetry import persist_agent_snapshot
 from ai_infra_api.services.audit import record_audit
-from ai_infra_api.services.infrastructure_events import publish_server_update
+from ai_infra_api.services.infrastructure_events import (
+    publish_model_inventory_update,
+    publish_server_update,
+)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -17,9 +20,9 @@ async def save_report(
     request: Request,
     session: DatabaseSession,
     agent: ServerAgent,
-) -> AgentReportResponse:
+) -> tuple[AgentReportResponse, bool]:
     try:
-        server = await persist_agent_snapshot(session, agent, snapshot)
+        persistence = await persist_agent_snapshot(session, agent, snapshot)
     except ValueError as exc:
         await record_audit(
             session,
@@ -35,9 +38,12 @@ async def save_report(
             code="agent_identity_conflict",
             message=str(exc),
         ) from exc
-    return AgentReportResponse(
-        server_id=server.id,
-        offline_after_seconds=request.app.state.settings.agent_offline_seconds,
+    return (
+        AgentReportResponse(
+            server_id=persistence.server.id,
+            offline_after_seconds=request.app.state.settings.agent_offline_seconds,
+        ),
+        persistence.model_inventory_changed,
     )
 
 
@@ -48,7 +54,7 @@ async def register(
     session: DatabaseSession,
     agent: CurrentAgent,
 ) -> AgentReportResponse:
-    result = await save_report(snapshot, request, session, agent)
+    result, model_inventory_changed = await save_report(snapshot, request, session, agent)
     await record_audit(
         session,
         action="agent.registered",
@@ -58,6 +64,8 @@ async def register(
         resource_id=str(agent.server_id),
     )
     await publish_server_update(request.app.state.redis, result.server_id)
+    if model_inventory_changed:
+        await publish_model_inventory_update(request.app.state.redis, result.server_id)
     return result
 
 
@@ -68,6 +76,8 @@ async def heartbeat(
     session: DatabaseSession,
     agent: CurrentAgent,
 ) -> AgentReportResponse:
-    result = await save_report(snapshot, request, session, agent)
+    result, model_inventory_changed = await save_report(snapshot, request, session, agent)
     await publish_server_update(request.app.state.redis, result.server_id)
+    if model_inventory_changed:
+        await publish_model_inventory_update(request.app.state.redis, result.server_id)
     return result

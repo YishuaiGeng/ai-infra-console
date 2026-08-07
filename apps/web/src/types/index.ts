@@ -122,6 +122,64 @@ export interface ModelFile {
   revision: string;
 }
 
+export interface ModelServer {
+  id: string;
+  name: string;
+  status: ServerStatus;
+  type: ServerType;
+  host: string;
+}
+
+export interface ModelInstallation {
+  id: string;
+  modelId: string;
+  source: string;
+  sourceId: string;
+  name: string;
+  displayName: string;
+  description: string;
+  architecture: string;
+  modelType: string;
+  metadata: Record<string, string>;
+  server: ModelServer;
+  directoryId: string | null;
+  path: string;
+  sizeBytes: number | null;
+  fileCount: number;
+  format: string;
+  quantization: string;
+  revision: string;
+  status: "discovered" | "stale" | "missing" | "error";
+  lastSeenAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelDirectory {
+  id: string;
+  serverId: string;
+  path: string;
+  isDefault: boolean;
+  isAllowed: boolean;
+  isAvailable: boolean;
+  errorCode: string | null;
+  lastScannedAt: string | null;
+  modelCount: number;
+}
+
+export interface ModelDetail {
+  id: string;
+  source: string;
+  sourceId: string;
+  name: string;
+  displayName: string;
+  description: string;
+  architecture: string;
+  modelType: string;
+  metadata: Record<string, string>;
+  locations: ModelInstallation[];
+}
+
 export interface DeploymentConfig {
   tensorParallelSize: number;
   gpuMemoryUtilization: number;

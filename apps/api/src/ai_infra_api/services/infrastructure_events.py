@@ -4,6 +4,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import Request
 from pydantic import ValidationError
@@ -16,10 +17,14 @@ logger = logging.getLogger(__name__)
 INFRASTRUCTURE_EVENT_CHANNEL = "ai-infra-console:infrastructure:v1"
 
 
-async def publish_server_update(redis: Redis, server_id: uuid.UUID) -> None:
+async def _publish_update(
+    redis: Redis,
+    server_id: uuid.UUID,
+    kind: Literal["server.updated", "server.offline", "model.inventory.updated"],
+) -> None:
     event = InfrastructureEvent(
         id=str(uuid.uuid4()),
-        kind="server.updated",
+        kind=kind,
         server_id=server_id,
         occurred_at=datetime.now(UTC),
     )
@@ -31,6 +36,14 @@ async def publish_server_update(redis: Redis, server_id: uuid.UUID) -> None:
             extra={"event": "infrastructure.publish_failed", "server_id": str(server_id)},
             exc_info=True,
         )
+
+
+async def publish_server_update(redis: Redis, server_id: uuid.UUID) -> None:
+    await _publish_update(redis, server_id, "server.updated")
+
+
+async def publish_model_inventory_update(redis: Redis, server_id: uuid.UUID) -> None:
+    await _publish_update(redis, server_id, "model.inventory.updated")
 
 
 def encode_sse(event: InfrastructureEvent) -> str:

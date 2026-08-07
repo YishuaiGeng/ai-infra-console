@@ -3,10 +3,17 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Literal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_infra_api.db.models import GPU, GPUMetric, GPUProcess, Server, ServerMetric
+from ai_infra_api.db.models import (
+    GPU,
+    GPUMetric,
+    GPUProcess,
+    ModelFile,
+    Server,
+    ServerMetric,
+)
 from ai_infra_api.schemas.infrastructure import (
     GPUProcessResponse,
     GPUResponse,
@@ -18,6 +25,10 @@ from ai_infra_api.schemas.infrastructure import (
     ServerSummaryResponse,
 )
 from ai_infra_api.services.agent_telemetry import mark_stale_servers_offline
+from ai_infra_api.services.model_reads import (
+    list_model_directories,
+    list_model_installations,
+)
 
 
 def _runtime_availability(value: object) -> RuntimeAvailabilityResponse | None:
@@ -184,6 +195,7 @@ def _summary_response(
     server: Server,
     metric: ServerMetric | None,
     gpus: list[GPUResponse],
+    model_count: int,
 ) -> ServerSummaryResponse:
     return ServerSummaryResponse(
         id=server.id,
@@ -210,7 +222,19 @@ def _summary_response(
         available_gpu_count=sum(item.status == "available" for item in gpus),
         gpu_memory_total=sum(item.memory_total for item in gpus),
         gpu_models=sorted({item.name for item in gpus}),
+        model_count=model_count,
     )
+
+
+async def _model_counts(session: AsyncSession) -> dict[uuid.UUID, int]:
+    rows = (
+        await session.execute(
+            select(ModelFile.server_id, func.count(ModelFile.id))
+            .where(ModelFile.status == "discovered")
+            .group_by(ModelFile.server_id)
+        )
+    ).all()
+    return {server_id: int(count) for server_id, count in rows}
 
 
 async def list_server_summaries(
@@ -220,6 +244,7 @@ async def list_server_summaries(
 ) -> list[ServerSummaryResponse]:
     await mark_stale_servers_offline(session, threshold_seconds=offline_seconds)
     servers, metrics, gpus, gpu_metrics, processes = await _load_rows(session)
+    model_counts = await _model_counts(session)
     servers_by_id = {server.id: server for server in servers}
     responses_by_server: dict[uuid.UUID, list[GPUResponse]] = defaultdict(list)
     for gpu in gpus:
@@ -228,7 +253,12 @@ async def list_server_summaries(
             _gpu_response(server, gpu, gpu_metrics.get(gpu.id), processes.get(gpu.id, []))
         )
     return [
-        _summary_response(server, metrics.get(server.id), responses_by_server[server.id])
+        _summary_response(
+            server,
+            metrics.get(server.id),
+            responses_by_server[server.id],
+            model_counts.get(server.id, 0),
+        )
         for server in servers
     ]
 
@@ -255,11 +285,21 @@ async def get_server_detail(
         for gpu in gpus
         for process in processes.get(gpu.id, [])
     ]
-    summary = _summary_response(server, metrics.get(server.id), gpu_responses)
+    model_counts = await _model_counts(session)
+    model_installations = await list_model_installations(session, server_id=server.id)
+    model_directories = await list_model_directories(session, server.id)
+    summary = _summary_response(
+        server,
+        metrics.get(server.id),
+        gpu_responses,
+        model_counts.get(server.id, 0),
+    )
     return ServerDetailResponse(
         **summary.model_dump(),
         gpus=gpu_responses,
         processes=process_responses,
+        models=model_installations,
+        model_directories=model_directories,
     )
 
 

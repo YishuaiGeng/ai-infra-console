@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import type { ModelDefinition } from "@/types";
-import { servers } from "@/mocks/data";
+import { useServers } from "@/hooks/use-infrastructure";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +39,8 @@ type DownloadValues = z.infer<typeof downloadSchema>;
 
 export function ModelDownloadDialog({ model }: { model: ModelDefinition }) {
   const [open, setOpen] = useState(false);
+  const serversQuery = useServers();
+  const servers = serversQuery.data ?? [];
   const onlineServers = servers.filter((server) => server.status === "online");
   const {
     register,
@@ -134,7 +136,9 @@ export function ModelDownloadDialog({ model }: { model: ModelDefinition }) {
             >
               Cancel
             </Button>
-            <Button type="submit">Create task</Button>
+            <Button type="submit" disabled={onlineServers.length === 0}>
+              Create task
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -307,8 +307,10 @@ asyncio.run(main())
 def verify_sse_event(
     base_url: str,
     user_token: str,
-    agent_token: str,
     server_id: str,
+    trigger: Callable[[], object],
+    *,
+    expected_kind: str,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {}
 
@@ -333,7 +335,7 @@ def verify_sse_event(
     thread = threading.Thread(target=consume, daemon=True)
     thread.start()
     time.sleep(0.5)
-    compose_agent("heartbeat", agent_token)
+    trigger()
     thread.join(timeout=20)
     if thread.is_alive():
         raise TimeoutError("SSE client did not receive an infrastructure event")
@@ -342,6 +344,8 @@ def verify_sse_event(
     event = result.get("event")
     if not isinstance(event, dict) or event.get("server_id") != server_id:
         raise RuntimeError("SSE event does not identify the reporting server")
+    if event.get("kind") != expected_kind:
+        raise RuntimeError(f"SSE event kind is not {expected_kind}")
     return event
 
 
@@ -372,7 +376,14 @@ def verify_web_session(
         headers={"cookie": f"aic_session={morsel.value}"},
     )
     with urllib.request.urlopen(summary_request, timeout=10) as response:
-        return dict(json.loads(response.read().decode("utf-8")))
+        summary = dict(json.loads(response.read().decode("utf-8")))
+    models_request = urllib.request.Request(
+        f"{web_url}/api/models",
+        headers={"cookie": f"aic_session={morsel.value}"},
+    )
+    with urllib.request.urlopen(models_request, timeout=10) as response:
+        models = list(json.loads(response.read().decode("utf-8")))
+    return {"models": models, "summary": summary}
 
 
 def wait_for_ready(base_url: str, timeout: float = 90) -> dict[str, Any]:
@@ -522,7 +533,7 @@ def main() -> None:
             payload={
                 "name": "phase3-cpu-agent",
                 "type": "local",
-                "tags": ["ci", "cpu-only"],
+                "tags": ["ci", "cpu-only", "model-storage"],
             },
             token=admin_token,
         ),
@@ -577,6 +588,8 @@ def main() -> None:
     )
     if reported_server is None or reported_server.get("status") != "online":
         raise RuntimeError("Registered Agent is not online in server inventory")
+    if reported_server.get("model_count") != 2:
+        raise RuntimeError("Registered Agent model fixture count is incorrect")
     if len(server_inventory) != 3:
         raise RuntimeError("Expected exactly three Phase 3 server fixtures")
     offline_server = next(
@@ -630,6 +643,45 @@ def main() -> None:
     ):
         raise RuntimeError("Infrastructure response exposed an Agent credential field")
 
+    model_inventory = run_check(
+        "Agent model inventory",
+        lambda: request_json(
+            f"{base_url}/api/v1/models?server_id={registration['server_id']}",
+            token=viewer_token,
+        ),
+    )
+    if not isinstance(model_inventory, list) or len(model_inventory) != 2:
+        raise RuntimeError("Agent model inventory does not contain two fixture locations")
+    if {item.get("format") for item in model_inventory} != {"safetensors", "gguf"}:
+        raise RuntimeError("Agent model inventory formats are incorrect")
+    if any(not str(item.get("path", "")).startswith("/models") for item in model_inventory):
+        raise RuntimeError("Agent model inventory escaped the configured root")
+    model_summary = run_check(
+        "model inventory summary",
+        lambda: request_json(
+            f"{base_url}/api/v1/model-inventory/summary",
+            token=viewer_token,
+        ),
+    )
+    if model_summary.get("model_count") != 2 or model_summary.get(
+        "current_installation_count"
+    ) != 2:
+        raise RuntimeError("Model inventory summary does not match fixture models")
+    model_directories = run_check(
+        "Agent model directory state",
+        lambda: request_json(
+            f"{base_url}/api/v1/servers/{registration['server_id']}/model-directories",
+            token=viewer_token,
+        ),
+    )
+    if (
+        not isinstance(model_directories, list)
+        or len(model_directories) != 1
+        or model_directories[0].get("path") != "/models"
+        or model_directories[0].get("model_count") != 2
+    ):
+        raise RuntimeError("Agent model directory state is incorrect")
+
     viewer_mutation_status = run_check(
         "Viewer mutation boundary",
         lambda: request_status(
@@ -647,16 +699,47 @@ def main() -> None:
         lambda: verify_sse_event(
             base_url,
             viewer_token,
-            agent_token,
             str(registration["server_id"]),
+            lambda: compose_agent("heartbeat", agent_token),
+            expected_kind="server.updated",
         ),
     )
-    web_summary = run_check(
+    viewer_default_status = run_check(
+        "Viewer model directory mutation boundary",
+        lambda: request_status(
+            f"{base_url}/api/v1/servers/{registration['server_id']}/model-directories/default",
+            method="PUT",
+            payload={"directory_id": model_directories[0]["id"]},
+            token=viewer_token,
+        ),
+    )
+    if viewer_default_status != 403:
+        raise RuntimeError("Viewer was allowed to change the default model directory")
+    model_sse_event = run_check(
+        "model inventory SSE event",
+        lambda: verify_sse_event(
+            base_url,
+            viewer_token,
+            str(registration["server_id"]),
+            lambda: request_json(
+                f"{base_url}/api/v1/servers/{registration['server_id']}/model-directories/default",
+                method="PUT",
+                payload={"directory_id": model_directories[0]["id"]},
+                token=admin_token,
+            ),
+            expected_kind="model.inventory.updated",
+        ),
+    )
+    web_result = run_check(
         "Web HttpOnly session and BFF",
         lambda: verify_web_session(web_url, username=username, password=password),
     )
+    web_summary = web_result["summary"]
     if any(web_summary.get(key) != value for key, value in expected_summary.items()):
         raise RuntimeError("Web BFF summary differs from the Central API")
+    web_models = web_result["models"]
+    if not isinstance(web_models, list) or len(web_models) != 2:
+        raise RuntimeError("Web BFF model inventory differs from the Central API")
 
     run_check(
         "Agent token revocation",
@@ -695,6 +778,13 @@ def main() -> None:
                     "offline_server_count": infrastructure["offline_server_count"],
                     "server_count": infrastructure["server_count"],
                     "sse_kind": sse_event["kind"],
+                    "viewer_read_verified": True,
+                    "web_bff_verified": True,
+                },
+                "models": {
+                    "formats": sorted(item["format"] for item in model_inventory),
+                    "installation_count": model_summary["installation_count"],
+                    "sse_kind": model_sse_event["kind"],
                     "viewer_read_verified": True,
                     "web_bff_verified": True,
                 },

@@ -19,6 +19,7 @@ export default defineConfig({
       reporter: ["text"],
       include: [
         "src/lib/api/infrastructure.ts",
+        "src/lib/api/models.ts",
         "src/lib/server/central-api.ts",
         "src/app/api/session/login/route.ts",
       ],

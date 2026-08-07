@@ -8,7 +8,7 @@ import {
   mapGpu,
   mapProcess,
   mapServer,
-  serverDetailDtoSchema,
+  serverDtoSchema,
 } from "@/lib/api/infrastructure";
 
 const gib = 1024 ** 3;
@@ -51,6 +51,7 @@ function serverDto() {
     available_gpu_count: 1,
     gpu_memory_total: 24 * gib,
     gpu_models: ["NVIDIA Test GPU"],
+    model_count: 2,
   };
 }
 
@@ -86,7 +87,7 @@ function gpuDto() {
 
 describe("infrastructure DTO mapping", () => {
   it("maps server bytes, nullable fields, and uptime into display values", () => {
-    const mapped = mapServer(serverDetailDtoSchema.omit({ gpus: true, processes: true }).parse(serverDto()));
+    const mapped = mapServer(serverDtoSchema.parse(serverDto()));
 
     expect(mapped.provider).toBe("Self-hosted");
     expect(mapped.host).toBe("lab-node");
@@ -94,6 +95,7 @@ describe("infrastructure DTO mapping", () => {
     expect(mapped.diskTotalGb).toBe(1024);
     expect(mapped.uptime).toBe("1d 2h");
     expect(mapped.gpuModel).toBe("NVIDIA Test GPU");
+    expect(mapped.modelCount).toBe(2);
   });
 
   it("maps GPU server context and process counts without mock joins", () => {
@@ -134,5 +136,8 @@ describe("infrastructure DTO mapping", () => {
       ["infrastructure", "gpus"],
       ["infrastructure", "servers", "server-1"],
     ]);
+    expect(
+      infrastructureEventQueryKeys("server-1", "model.inventory.updated"),
+    ).toContainEqual(["models", "summary"]);
   });
 });

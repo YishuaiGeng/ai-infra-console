@@ -23,6 +23,8 @@ import { formatDateTime } from "@/lib/format";
 import { PageContainer } from "@/components/layout/page-container";
 import { GPUCard } from "@/components/gpu/gpu-card";
 import { GPUProcessTable } from "@/components/gpu/gpu-process-table";
+import { ModelDirectoryPanel } from "@/components/model/model-directory-panel";
+import { ModelInstallationTable } from "@/components/model/model-installation-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { PageLoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -65,7 +67,7 @@ export function ServerDetailPage({ serverId }: { serverId: string }) {
     );
   }
 
-  const { server, gpus, processes } = detailQuery.data;
+  const { server, gpus, processes, models, modelDirectories } = detailQuery.data;
   const isAdmin = sessionQuery.data?.role === "admin";
 
   const rotate = async () => {
@@ -130,7 +132,7 @@ export function ServerDetailPage({ serverId }: { serverId: string }) {
         <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="gpus">GPUs ({gpus.length})</TabsTrigger>
-          <TabsTrigger value="models">Models (0)</TabsTrigger>
+          <TabsTrigger value="models">Models ({models.length})</TabsTrigger>
           <TabsTrigger value="processes">Processes ({processes.length})</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -184,13 +186,25 @@ export function ServerDetailPage({ serverId }: { serverId: string }) {
           )}
         </TabsContent>
 
-        <TabsContent value="models" className="mt-4">
-          <SectionPanel title="Installed model files">
-            <EmptyState
-              icon={Box}
-              title="Model inventory not scanned"
-              message="Installed model files will appear after model directory scanning is enabled."
-            />
+        <TabsContent value="models" className="mt-4 space-y-4">
+          <ModelDirectoryPanel
+            serverId={server.id}
+            directories={modelDirectories}
+            isAdmin={isAdmin}
+          />
+          <SectionPanel
+            title="Installed model files"
+            description={`${models.length} physical locations reported by this Agent`}
+          >
+            {models.length ? (
+              <ModelInstallationTable data={models} />
+            ) : (
+              <EmptyState
+                icon={Box}
+                title="No models discovered"
+                message="The configured roots are empty or have not completed a successful scan."
+              />
+            )}
           </SectionPanel>
         </TabsContent>
 

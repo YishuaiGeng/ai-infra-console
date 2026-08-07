@@ -103,6 +103,9 @@ class ServerModelDirectory(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     path: Mapped[str] = mapped_column(Text)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_allowed: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(String(64))
 
 
 class GPU(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -198,13 +201,18 @@ class ModelFile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     server_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("servers.id", ondelete="CASCADE"), index=True
     )
+    directory_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("server_model_directories.id", ondelete="SET NULL"), index=True
+    )
     path: Mapped[str] = mapped_column(Text)
     size: Mapped[int | None] = mapped_column(BigInteger)
+    file_count: Mapped[int] = mapped_column(Integer, default=1)
     format: Mapped[str | None] = mapped_column(String(32))
     quantization: Mapped[str | None] = mapped_column(String(64))
     source: Mapped[str | None] = mapped_column(String(32))
     revision: Mapped[str | None] = mapped_column(String(128))
     status: Mapped[str] = mapped_column(String(32), default="discovered", index=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class ModelDownloadTask(UUIDPrimaryKeyMixin, TimestampMixin, Base):

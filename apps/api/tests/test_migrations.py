@@ -34,6 +34,12 @@ def table_names(database_path: Path) -> set[str]:
     return {str(row[0]) for row in rows}
 
 
+def column_names(database_path: Path, table: str) -> set[str]:
+    with sqlite3.connect(database_path) as connection:
+        rows = connection.execute(f"PRAGMA table_info({table})").fetchall()
+    return {str(row[1]) for row in rows}
+
+
 def test_initial_migration_upgrade_downgrade_and_reupgrade(tmp_path: Path) -> None:
     api_root = Path(__file__).resolve().parents[1]
     database_path = tmp_path / "migration.db"
@@ -42,6 +48,12 @@ def test_initial_migration_upgrade_downgrade_and_reupgrade(tmp_path: Path) -> No
 
     command.upgrade(config, "head")
     assert REQUIRED_TABLES <= table_names(database_path)
+    assert {"is_available", "last_scanned_at", "error_code"} <= column_names(
+        database_path, "server_model_directories"
+    )
+    assert {"directory_id", "file_count", "last_seen_at"} <= column_names(
+        database_path, "model_files"
+    )
 
     command.downgrade(config, "base")
     assert not (REQUIRED_TABLES & table_names(database_path))

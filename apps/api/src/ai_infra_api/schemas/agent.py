@@ -82,12 +82,47 @@ class GPUSnapshot(BaseModel):
     processes: list[GPUProcessSnapshot] = Field(default_factory=list)
 
 
+class ModelDirectorySnapshot(BaseModel):
+    path: str = Field(min_length=1, max_length=4096)
+    is_default: bool = False
+    available: bool
+    error_code: str | None = Field(default=None, max_length=64)
+    scanned_at: datetime
+
+
+class ModelInstallationSnapshot(BaseModel):
+    source: str = Field(min_length=1, max_length=32)
+    source_id: str = Field(min_length=1, max_length=255)
+    name: str = Field(min_length=1, max_length=255)
+    display_name: str | None = Field(default=None, max_length=255)
+    architecture: str | None = Field(default=None, max_length=128)
+    model_type: str | None = Field(default=None, max_length=64)
+    path: str = Field(min_length=1, max_length=4096)
+    size: int = Field(ge=0)
+    format: Literal["safetensors", "pytorch", "gguf", "ollama"]
+    quantization: str | None = Field(default=None, max_length=64)
+    revision: str | None = Field(default=None, max_length=128)
+    file_count: int = Field(default=1, ge=1, le=100_000)
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class ModelInventorySnapshot(BaseModel):
+    collected_at: datetime
+    directories: list[ModelDirectorySnapshot] = Field(default_factory=list, max_length=64)
+    installations: list[ModelInstallationSnapshot] = Field(
+        default_factory=list,
+        max_length=10_000,
+    )
+    ollama: CollectorStatus
+
+
 class AgentSnapshot(BaseModel):
     collected_at: datetime
     agent_version: str = Field(min_length=1, max_length=64)
     host: HostSnapshot
     gpus: list[GPUSnapshot]
     gpu_collector: CollectorStatus
+    model_inventory: ModelInventorySnapshot | None = None
 
 
 class AgentReportResponse(BaseModel):

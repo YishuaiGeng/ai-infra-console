@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 import type { GPU, GPUProcess, Server, ServerStatus, ServerType } from "@/types";
+import {
+  mapModelDirectory,
+  mapModelInstallation,
+  modelDirectoryDtoSchema,
+  modelInstallationDtoSchema,
+} from "@/lib/api/models";
 
 const nullableNumber = z.number().nullable();
 const nullableString = z.string().nullable();
@@ -97,11 +103,14 @@ export const serverDtoSchema = z.object({
   available_gpu_count: z.number().int(),
   gpu_memory_total: z.number().int(),
   gpu_models: z.array(z.string()),
+  model_count: z.number().int(),
 });
 
 export const serverDetailDtoSchema = serverDtoSchema.extend({
   gpus: z.array(gpuDtoSchema),
   processes: z.array(processDtoSchema),
+  models: z.array(modelInstallationDtoSchema),
+  model_directories: z.array(modelDirectoryDtoSchema),
 });
 
 export const infrastructureSummarySchema = z.object({
@@ -122,7 +131,7 @@ export const registrationResponseSchema = z.object({
 
 export const infrastructureEventSchema = z.object({
   id: z.string(),
-  kind: z.enum(["server.updated", "server.offline"]),
+  kind: z.enum(["server.updated", "server.offline", "model.inventory.updated"]),
   server_id: z.string(),
   occurred_at: z.string(),
 });
@@ -141,13 +150,19 @@ export const infrastructureQueryKeys = {
   gpus: ["infrastructure", "gpus"] as const,
 };
 
-export function infrastructureEventQueryKeys(serverId: string) {
-  return [
+export function infrastructureEventQueryKeys(
+  serverId: string,
+  kind: z.infer<typeof infrastructureEventSchema>["kind"] = "server.updated",
+) {
+  const keys: readonly (readonly string[])[] = [
     infrastructureQueryKeys.summary,
     infrastructureQueryKeys.servers,
     infrastructureQueryKeys.gpus,
     infrastructureQueryKeys.server(serverId),
   ];
+  return kind === "model.inventory.updated"
+    ? [...keys, ["models"], ["models", "summary"]]
+    : keys;
 }
 
 const bytesPerGiB = 1024 ** 3;
@@ -196,7 +211,7 @@ export function mapServer(dto: ServerDto): Server {
     ramTotalGb: bytesToGiB(metric?.memory_total ?? dto.memory_total) ?? 0,
     diskUsedGb: bytesToGiB(metric?.disk_used ?? null),
     diskTotalGb: bytesToGiB(metric?.disk_total ?? dto.disk_total) ?? 0,
-    modelCount: 0,
+    modelCount: dto.model_count,
     runningCount: 0,
     lastSeen: dto.last_seen ?? dto.created_at,
     hostname: dto.hostname ?? "Not reported",
@@ -206,6 +221,16 @@ export function mapServer(dto: ServerDto): Server {
     agentVersion: dto.agent_version ?? "Not connected",
     networkRxMbps: null,
     networkTxMbps: null,
+  };
+}
+
+export function mapServerDetail(dto: ServerDetailDto) {
+  return {
+    server: mapServer(dto),
+    gpus: dto.gpus.map(mapGpu),
+    processes: dto.processes.map(mapProcess),
+    models: dto.models.map(mapModelInstallation),
+    modelDirectories: dto.model_directories.map(mapModelDirectory),
   };
 }
 

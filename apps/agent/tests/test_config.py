@@ -28,3 +28,38 @@ def test_production_requires_tls_verification() -> None:
                 "tls_verify": False,
             }
         )
+
+
+def test_model_directories_are_normalized_and_default_is_allowed(tmp_path: object) -> None:
+    from pathlib import Path
+
+    root = Path(str(tmp_path)) / "models"
+    settings = AgentSettings(
+        environment="test",
+        allowed_model_directories=(root, root),
+        default_model_directory=root,
+    )
+
+    assert settings.allowed_model_directories == (root.resolve(),)
+    assert settings.default_model_directory == root.resolve()
+
+
+def test_model_directories_reject_relative_overlap_and_unknown_default(
+    tmp_path: object,
+) -> None:
+    from pathlib import Path
+
+    root = Path(str(tmp_path)) / "models"
+    with pytest.raises(ValidationError, match="absolute paths"):
+        AgentSettings(environment="test", allowed_model_directories=(Path("models"),))
+    with pytest.raises(ValidationError, match="must not overlap"):
+        AgentSettings(
+            environment="test",
+            allowed_model_directories=(root, root / "nested"),
+        )
+    with pytest.raises(ValidationError, match="must be in the allowed"):
+        AgentSettings(
+            environment="test",
+            allowed_model_directories=(root,),
+            default_model_directory=Path(str(tmp_path)) / "other",
+        )

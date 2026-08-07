@@ -4,6 +4,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from ai_infra_api.schemas.model_inventory import (
+    ModelDirectoryResponse,
+    ModelInstallationResponse,
+)
+
 
 class RuntimeAvailabilityResponse(BaseModel):
     available: bool
@@ -97,11 +102,14 @@ class ServerSummaryResponse(BaseModel):
     available_gpu_count: int = Field(ge=0)
     gpu_memory_total: int = Field(ge=0)
     gpu_models: list[str]
+    model_count: int = Field(default=0, ge=0)
 
 
 class ServerDetailResponse(ServerSummaryResponse):
     gpus: list[GPUResponse]
     processes: list[GPUProcessResponse]
+    models: list[ModelInstallationResponse]
+    model_directories: list[ModelDirectoryResponse]
 
 
 class InfrastructureSummaryResponse(BaseModel):
@@ -117,6 +125,6 @@ class InfrastructureSummaryResponse(BaseModel):
 
 class InfrastructureEvent(BaseModel):
     id: str
-    kind: Literal["server.updated", "server.offline"]
+    kind: Literal["server.updated", "server.offline", "model.inventory.updated"]
     server_id: uuid.UUID
     occurred_at: datetime

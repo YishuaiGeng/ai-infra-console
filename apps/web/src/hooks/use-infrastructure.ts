@@ -12,8 +12,8 @@ import {
   infrastructureQueryKeys,
   infrastructureSummarySchema,
   mapGpu,
-  mapProcess,
   mapServer,
+  mapServerDetail,
   registrationResponseSchema,
   serverDetailDtoSchema,
   serverDtoSchema,
@@ -66,11 +66,7 @@ export function useServer(id: string) {
         `/api/servers/${encodeURIComponent(id)}`,
         serverDetailDtoSchema,
       );
-      return {
-        server: mapServer(dto),
-        gpus: dto.gpus.map(mapGpu),
-        processes: dto.processes.map(mapProcess),
-      };
+      return mapServerDetail(dto);
     },
     refetchInterval: refreshInterval,
   });
@@ -143,7 +139,10 @@ export function useInfrastructureEvents(enabled = true) {
       }
       const parsed = infrastructureEventSchema.safeParse(value);
       if (!parsed.success) return;
-      for (const queryKey of infrastructureEventQueryKeys(parsed.data.server_id)) {
+      for (const queryKey of infrastructureEventQueryKeys(
+        parsed.data.server_id,
+        parsed.data.kind,
+      )) {
         void queryClient.invalidateQueries({ queryKey });
       }
     };
