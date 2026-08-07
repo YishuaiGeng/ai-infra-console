@@ -69,6 +69,7 @@ services:
       retries: 20
       start_period: 10s
     networks:
+      - frontend
       - backend
 
   worker:
