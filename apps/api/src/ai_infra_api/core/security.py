@@ -1,5 +1,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
+from secrets import token_urlsafe
 from typing import Any
 
 import jwt
@@ -10,6 +12,7 @@ from ai_infra_api.core.errors import AppError
 from ai_infra_api.db.models import User, UserRole
 
 password_hash = PasswordHash.recommended()
+AGENT_TOKEN_PREFIX = "aic_agent_"  # noqa: S105
 
 
 def hash_password(password: str) -> str:
@@ -18,6 +21,15 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, encoded: str) -> bool:
     return password_hash.verify(password, encoded)
+
+
+def create_agent_token() -> tuple[str, str]:
+    token = f"{AGENT_TOKEN_PREFIX}{token_urlsafe(32)}"
+    return token, digest_agent_token(token)
+
+
+def digest_agent_token(token: str) -> str:
+    return sha256(token.encode("utf-8")).hexdigest()
 
 
 def create_access_token(user: User, settings: Settings) -> tuple[str, int]:

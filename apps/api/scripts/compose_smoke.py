@@ -51,6 +51,25 @@ def postgres_exec(*arguments: str) -> str:
     return result.stdout.strip()
 
 
+def compose_agent(
+    command: str, token: str, *, build: bool = False
+) -> subprocess.CompletedProcess[str]:
+    environment = os.environ.copy()
+    environment["AI_INFRA_AGENT_TOKEN"] = token
+    arguments = ["docker", "compose", "--profile", "agent", "run", "--rm", "--no-deps"]
+    if build:
+        arguments.append("--build")
+    arguments.extend(("-e", "AI_INFRA_AGENT_TOKEN", "agent", command))
+    return subprocess.run(
+        arguments,
+        check=False,
+        capture_output=True,
+        env=environment,
+        text=True,
+        timeout=120,
+    )
+
+
 def run_check(name: str, check: Callable[[], T]) -> T:
     print(f"[compose-smoke] starting: {name}", flush=True)
     started_at = time.monotonic()
@@ -80,9 +99,9 @@ def request_json(
     url: str,
     *,
     method: str = "GET",
-    payload: dict[str, str] | None = None,
+    payload: dict[str, Any] | None = None,
     token: str | None = None,
-) -> dict[str, Any]:
+) -> Any:
     headers = {"accept": "application/json"}
     data = None
     if payload is not None:
@@ -92,7 +111,8 @@ def request_json(
         headers["authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     with urllib.request.urlopen(request, timeout=5) as response:
-        return json.loads(response.read().decode("utf-8"))
+        body = response.read()
+        return json.loads(body.decode("utf-8")) if body else {}
 
 
 def wait_for_ready(base_url: str, timeout: float = 90) -> dict[str, Any]:
@@ -231,6 +251,60 @@ def main() -> None:
             f"{base_url}/api/v1/auth/me", token=str(login["access_token"])
         ),
     )
+    registration = run_check(
+        "Agent token provisioning",
+        lambda: request_json(
+            f"{base_url}/api/v1/servers/registrations",
+            method="POST",
+            payload={"name": "phase2-compose-agent", "type": "local", "tags": ["ci"]},
+            token=str(login["access_token"]),
+        ),
+    )
+    agent_token = str(registration["registration_token"])
+    agent_registration = run_check(
+        "Agent container registration",
+        lambda: compose_agent("register", agent_token, build=True),
+    )
+    if agent_registration.returncode != 0:
+        raise RuntimeError(
+            "Agent registration container failed: "
+            f"{agent_registration.stderr.strip() or agent_registration.stdout.strip()}"
+        )
+    agent_heartbeat = run_check(
+        "Agent container heartbeat", lambda: compose_agent("heartbeat", agent_token)
+    )
+    if agent_heartbeat.returncode != 0:
+        raise RuntimeError(
+            "Agent heartbeat container failed: "
+            f"{agent_heartbeat.stderr.strip() or agent_heartbeat.stdout.strip()}"
+        )
+    server_inventory = run_check(
+        "Agent online inventory",
+        lambda: request_json(
+            f"{base_url}/api/v1/servers", token=str(login["access_token"])
+        ),
+    )
+    if not isinstance(server_inventory, list):
+        raise RuntimeError("Server inventory response is not a list")
+    reported_server = next(
+        (item for item in server_inventory if item.get("id") == registration["server_id"]),
+        None,
+    )
+    if reported_server is None or reported_server.get("status") != "online":
+        raise RuntimeError("Registered Agent is not online in server inventory")
+    run_check(
+        "Agent token revocation",
+        lambda: request_json(
+            f"{base_url}/api/v1/servers/{registration['server_id']}/agent-token/revoke",
+            method="POST",
+            token=str(login["access_token"]),
+        ),
+    )
+    revoked_heartbeat = run_check(
+        "revoked Agent rejection", lambda: compose_agent("heartbeat", agent_token)
+    )
+    if revoked_heartbeat.returncode == 0:
+        raise RuntimeError("Revoked Agent token was accepted")
     worker = run_check("worker job", verify_worker)
     services = run_check("service states", verify_service_state)
 
@@ -241,6 +315,13 @@ def main() -> None:
                     "role": current_user["role"],
                     "token_type": login["token_type"],
                     "username": current_user["username"],
+                },
+                "agent": {
+                    "agent_version": reported_server.get("agent_version"),
+                    "hostname": reported_server.get("hostname"),
+                    "revocation_verified": True,
+                    "server_id": registration["server_id"],
+                    "status": reported_server.get("status"),
                 },
                 "readiness": readiness,
                 "services": services,

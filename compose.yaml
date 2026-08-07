@@ -8,6 +8,7 @@ x-api-environment: &api-environment
   AI_INFRA_BOOTSTRAP_ADMIN_USERNAME: ${AI_INFRA_BOOTSTRAP_ADMIN_USERNAME:-admin}
   AI_INFRA_BOOTSTRAP_ADMIN_PASSWORD: ${AI_INFRA_BOOTSTRAP_ADMIN_PASSWORD:-}
   AI_INFRA_ACCESS_TOKEN_MINUTES: ${AI_INFRA_ACCESS_TOKEN_MINUTES:-30}
+  AI_INFRA_AGENT_OFFLINE_SECONDS: ${AI_INFRA_AGENT_OFFLINE_SECONDS:-30}
   AI_INFRA_LOG_LEVEL: ${AI_INFRA_LOG_LEVEL:-INFO}
 
 services:
@@ -93,6 +94,31 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    networks:
+      - backend
+
+  agent:
+    profiles: ["agent"]
+    hostname: phase2-agent-smoke
+    build:
+      context: ./apps/agent
+      dockerfile: Dockerfile
+    environment:
+      AI_INFRA_AGENT_ENVIRONMENT: development
+      AI_INFRA_AGENT_CENTRAL_URL: http://api:8000
+      AI_INFRA_AGENT_TOKEN: ${AI_INFRA_AGENT_TOKEN:-}
+      AI_INFRA_AGENT_HEARTBEAT_SECONDS: 10
+      AI_INFRA_AGENT_TLS_VERIFY: "true"
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     networks:
       - backend
 

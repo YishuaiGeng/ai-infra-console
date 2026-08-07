@@ -138,6 +138,42 @@ class GPUMetric(UUIDPrimaryKeyMixin, Base):
     fan_speed: Mapped[float | None] = mapped_column(Float)
 
 
+class ServerMetric(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "server_metrics"
+
+    server_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("servers.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    collected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    uptime_seconds: Mapped[int | None] = mapped_column(BigInteger)
+    cpu_utilization: Mapped[float | None] = mapped_column(Float)
+    memory_used: Mapped[int | None] = mapped_column(BigInteger)
+    memory_total: Mapped[int | None] = mapped_column(BigInteger)
+    disk_used: Mapped[int | None] = mapped_column(BigInteger)
+    disk_total: Mapped[int | None] = mapped_column(BigInteger)
+    network_bytes_sent: Mapped[int | None] = mapped_column(BigInteger)
+    network_bytes_received: Mapped[int | None] = mapped_column(BigInteger)
+    runtime_info: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class GPUProcess(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "gpu_processes"
+    __table_args__ = (UniqueConstraint("gpu_id", "pid"),)
+
+    gpu_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("gpus.id", ondelete="CASCADE"), index=True
+    )
+    pid: Mapped[int] = mapped_column(Integer)
+    username: Mapped[str | None] = mapped_column(String(128))
+    command: Mapped[str | None] = mapped_column(String(512))
+    memory_used: Mapped[int | None] = mapped_column(BigInteger)
+    collected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
 class Model(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "models"
     __table_args__ = (UniqueConstraint("source", "source_id"),)

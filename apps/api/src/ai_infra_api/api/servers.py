@@ -1,0 +1,127 @@
+import uuid
+
+from fastapi import APIRouter, Request, status
+from sqlalchemy import select
+
+from ai_infra_api.core.errors import AppError
+from ai_infra_api.core.middleware import request_id_from
+from ai_infra_api.db.models import Server, ServerAgent
+from ai_infra_api.dependencies import AdminUser, DatabaseSession
+from ai_infra_api.schemas.agent import (
+    AgentTokenResponse,
+    ServerRegistrationRequest,
+    ServerRegistrationResponse,
+    ServerStatusResponse,
+)
+from ai_infra_api.services.agent_telemetry import mark_stale_servers_offline
+from ai_infra_api.services.agent_tokens import revoke_agent_token, rotate_agent_token
+from ai_infra_api.services.audit import record_audit
+
+router = APIRouter(prefix="/servers", tags=["servers"])
+
+
+async def server_agent_or_404(session: DatabaseSession, server_id: uuid.UUID) -> ServerAgent:
+    agent = await session.scalar(select(ServerAgent).where(ServerAgent.server_id == server_id))
+    if agent is None:
+        raise AppError(
+            status_code=404,
+            code="server_not_found",
+            message="The server does not exist.",
+        )
+    return agent
+
+
+@router.post(
+    "/registrations",
+    response_model=ServerRegistrationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_registration(
+    payload: ServerRegistrationRequest,
+    request: Request,
+    session: DatabaseSession,
+    admin: AdminUser,
+) -> ServerRegistrationResponse:
+    if await session.scalar(select(Server.id).where(Server.name == payload.name)) is not None:
+        raise AppError(
+            status_code=409,
+            code="server_name_conflict",
+            message="A server with this name already exists.",
+        )
+
+    server = Server(
+        name=payload.name,
+        type=payload.type,
+        provider=payload.provider,
+        description=payload.description,
+        tags=payload.tags,
+        status="pending",
+    )
+    session.add(server)
+    await session.flush()
+    agent = ServerAgent(server_id=server.id)
+    token = rotate_agent_token(agent)
+    session.add(agent)
+    await record_audit(
+        session,
+        action="agent.registration.created",
+        success=True,
+        request_id=request_id_from(request),
+        actor_user_id=admin.id,
+        resource_type="server",
+        resource_id=str(server.id),
+    )
+    return ServerRegistrationResponse(server_id=server.id, registration_token=token)
+
+
+@router.post("/{server_id}/agent-token", response_model=AgentTokenResponse)
+async def rotate_token(
+    server_id: uuid.UUID,
+    request: Request,
+    session: DatabaseSession,
+    admin: AdminUser,
+) -> AgentTokenResponse:
+    agent = await server_agent_or_404(session, server_id)
+    token = rotate_agent_token(agent)
+    await record_audit(
+        session,
+        action="agent.token.rotated",
+        success=True,
+        request_id=request_id_from(request),
+        actor_user_id=admin.id,
+        resource_type="server",
+        resource_id=str(server_id),
+    )
+    return AgentTokenResponse(server_id=server_id, registration_token=token)
+
+
+@router.post("/{server_id}/agent-token/revoke", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_token(
+    server_id: uuid.UUID,
+    request: Request,
+    session: DatabaseSession,
+    admin: AdminUser,
+) -> None:
+    agent = await server_agent_or_404(session, server_id)
+    revoke_agent_token(agent)
+    await record_audit(
+        session,
+        action="agent.token.revoked",
+        success=True,
+        request_id=request_id_from(request),
+        actor_user_id=admin.id,
+        resource_type="server",
+        resource_id=str(server_id),
+    )
+
+
+@router.get("", response_model=list[ServerStatusResponse])
+async def list_servers(
+    request: Request,
+    session: DatabaseSession,
+    _admin: AdminUser,
+) -> list[Server]:
+    await mark_stale_servers_offline(
+        session, threshold_seconds=request.app.state.settings.agent_offline_seconds
+    )
+    return list(await session.scalars(select(Server).order_by(Server.name)))

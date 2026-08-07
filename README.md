@@ -35,6 +35,15 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 - Five-service Compose definition for web, API, PostgreSQL, Redis, and worker.
 - Automated backend lint, type checking, migration, authentication, error, health, and worker tests.
 
+## Phase 2 Agent (in progress)
+
+- Outbound-only Python Agent with strict environment configuration and structured logs.
+- Admin-issued per-Agent registration tokens with digest-only storage, rotation, and revocation.
+- Registration and heartbeat APIs that persist host metrics, GPU inventory, GPU metrics, and GPU processes.
+- `psutil` host collection, Docker/Ollama detection, NVML-first NVIDIA collection, and fixed `nvidia-smi` fallback.
+- Explicit allowlist for three read-only operations; no inbound port or generic command execution.
+- Non-root container, hardened systemd template, wheel installer, retry/backoff, and CPU-only degradation.
+
 ## Product workflow
 
 This is the target product workflow. Phase 0 only simulates its interactions in the browser.
@@ -70,6 +79,7 @@ The root route `/` redirects to `/dashboard`. Mock-backed examples for dynamic r
 - React Hook Form and Zod
 - Zustand, Recharts, Lucide React, next-themes, and Sonner
 - FastAPI, SQLAlchemy, Pydantic, Alembic, PostgreSQL, Redis, and RQ
+- psutil, NVIDIA Management Library, Docker SDK, and HTTPX for the Agent
 - uv, Ruff, mypy, and pytest
 
 ## Quick start
@@ -103,8 +113,12 @@ For the complete Compose stack, configure `.env` from `.env.example`, then run `
 | `npm run start` | Serve a completed production build |
 | `npm run check:api` | Run API lint, type checking, and tests |
 | `npm run api:smoke` | Run a temporary API, Redis, auth, and worker smoke test |
-| `npm run check` | Run all web and API checks |
+| `npm run check:agent` | Run Agent lint, strict type checking, and tests |
+| `npm run security:scan` | Enforce command-interface and tracked-secret boundaries |
+| `npm run check` | Run all Web, API, Agent, and security checks |
 | `docker compose up -d --build` | Start the five-service local stack |
+
+Use `uv run --project apps/agent ai-infra-agent collect` for a local hardware snapshot. Agent provisioning and systemd operation are documented in [Agent Operations](./docs/AGENT_OPERATIONS.md).
 
 ## Repository layout
 
@@ -112,6 +126,7 @@ For the complete Compose stack, configure `.env` from `.env.example`, then run `
 ai-infra-console/
 ├── apps/
 │   ├── api/                 # FastAPI, migrations, worker, and tests
+│   ├── agent/               # Outbound Agent, collectors, client, and tests
 │   └── web/                 # Next.js application
 │       └── src/
 │           ├── app/         # App Router pages and layouts
@@ -128,7 +143,7 @@ ai-infra-console/
 └── package.json             # npm workspace entry point
 ```
 
-The monorepo is adding `apps/agent` during Phase 2 under the code-level plan in [`docs/phases/PHASE_2_AGENT.md`](./docs/phases/PHASE_2_AGENT.md).
+The `apps/agent` package is being validated under the code-level plan in [`docs/phases/PHASE_2_AGENT.md`](./docs/phases/PHASE_2_AGENT.md).
 
 ## Roadmap
 

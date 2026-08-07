@@ -35,6 +35,15 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 - Web、API、PostgreSQL、Redis、Worker 五服务 Compose 定义。
 - 后端 Lint、类型、Migration、认证、错误、健康检查和 Worker 自动化测试。
 
+## Phase 2 Agent（进行中）
+
+- 仅主动出站连接的 Python Agent、严格环境配置和结构化日志。
+- Admin 签发的单 Agent 注册 Token，仅存摘要，并支持轮换与吊销。
+- 注册和心跳 API 持久化主机指标、GPU Inventory、GPU 指标与 GPU Process。
+- 使用 `psutil` 采集主机，检测 Docker/Ollama，NVIDIA 采集优先 NVML 并固定回退 `nvidia-smi`。
+- 只允许三个只读白名单操作；不监听入站端口，不提供通用命令执行。
+- 非 root 容器、加固 systemd 模板、wheel 安装脚本、退避重试和 CPU-only 降级。
+
 ## 产品主链路
 
 以下是产品目标链路；Phase 0 只在浏览器中模拟相关交互。
@@ -70,6 +79,7 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 - React Hook Form、Zod
 - Zustand、Recharts、Lucide React、next-themes、Sonner
 - FastAPI、SQLAlchemy、Pydantic、Alembic、PostgreSQL、Redis、RQ
+- Agent 使用 psutil、NVIDIA Management Library、Docker SDK 和 HTTPX
 - uv、Ruff、mypy、pytest
 
 ## 本地启动
@@ -103,8 +113,12 @@ npm run dev
 | `npm run start` | 启动已构建的生产版本 |
 | `npm run check:api` | 执行 API Lint、类型检查和测试 |
 | `npm run api:smoke` | 临时启动 API、Redis、认证和 Worker 冒烟测试 |
-| `npm run check` | 执行全部 Web 和 API 检查 |
+| `npm run check:agent` | 执行 Agent Lint、严格类型检查和测试 |
+| `npm run security:scan` | 检查通用命令接口与 Git 敏感文件边界 |
+| `npm run check` | 执行全部 Web、API、Agent 与安全边界检查 |
 | `docker compose up -d --build` | 启动五服务本地栈 |
+
+可执行 `uv run --project apps/agent ai-infra-agent collect` 生成本机硬件快照。Token 签发与 systemd 运维见 [Agent 运维文档](./AGENT_OPERATIONS.md)。
 
 ## 目录结构
 
@@ -112,6 +126,7 @@ npm run dev
 ai-infra-console/
 ├── apps/
 │   ├── api/                 # FastAPI、Migration、Worker 和测试
+│   ├── agent/               # 出站 Agent、采集器、客户端和测试
 │   └── web/                 # Next.js 应用
 │       └── src/
 │           ├── app/         # App Router 页面与布局
@@ -128,7 +143,7 @@ ai-infra-console/
 └── package.json             # npm workspace 入口
 ```
 
-Phase 2 正按照 [`docs/phases/PHASE_2_AGENT.md`](./phases/PHASE_2_AGENT.md) 的代码级计划新增 `apps/agent`。
+`apps/agent` 正按照 [`docs/phases/PHASE_2_AGENT.md`](./phases/PHASE_2_AGENT.md) 的代码级计划执行运行时验收。
 
 ## Roadmap
 

@@ -1,0 +1,25 @@
+[Unit]
+Description=AI Infra Console Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ai-infra-agent
+Group=ai-infra-agent
+EnvironmentFile=/etc/ai-infra-console/agent.env
+ExecStart=/opt/ai-infra-agent/bin/ai-infra-agent run
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

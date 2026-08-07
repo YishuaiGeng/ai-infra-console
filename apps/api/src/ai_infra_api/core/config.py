@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     jwt_issuer: str = "ai-infra-console"
     jwt_audience: str = "ai-infra-console-web"
     access_token_minutes: int = 30
+    agent_offline_seconds: int = Field(default=30, ge=10, le=86400)
 
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: SecretStr | None = None
