@@ -1,6 +1,6 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-4%20Model%20Inventory-2563eb)](./docs/DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-5%20Model%20Download-2563eb)](./docs/DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](./LICENSE)
 
@@ -11,7 +11,7 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 ![AI Infra Console dashboard](./docs/assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> Server and GPU views now use the real Central API and outbound Agent data. Phase 4 is replacing the remaining installed-model fixtures with secure directory scanning. Model download and deployment lifecycle actions remain later roadmap work.
+> Server, GPU, and installed-model views now use real Central API and outbound Agent data. Phase 5 is replacing the remaining model-library and download fixtures with provider search and allowlisted Agent tasks. Deployment lifecycle actions remain later roadmap work.
 
 ## Phase 0 UI coverage (mock-backed)
 
@@ -52,6 +52,14 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 - Real Dashboard, Servers, Server Detail, and GPU table/card views across online, offline, CPU-only, and multi-GPU nodes.
 - Admin-only server registration and Agent token lifecycle with Viewer read access.
 - Three-server Compose smoke coverage for migrations, Agent heartbeat, SSE, Web BFF, and authorization boundaries.
+
+## Phase 4 model inventory (complete)
+
+- Agent-owned model-directory allowlists with bounded, read-only filesystem scanning.
+- Safetensors, PyTorch bin, standalone GGUF, Hugging Face cache, and loopback Ollama discovery.
+- Reconciled logical models and physical locations across multiple servers without losing failed-root history.
+- Authenticated inventory, model detail, summary, and per-server directory APIs with SSE refresh.
+- Real Installed Models and Server Detail Models views with scan health and Admin-only default selection.
 
 ## Product workflow
 
@@ -152,7 +160,7 @@ ai-infra-console/
 └── package.json             # npm workspace entry point
 ```
 
-Phase 3 passed its code-level, browser, and Linux Compose gates. Phase 4 is tracked in [`docs/phases/PHASE_4_MODEL_INVENTORY.md`](./docs/phases/PHASE_4_MODEL_INVENTORY.md).
+Phase 4 passed its code-level, browser, and Linux Compose gates. Phase 5 is tracked in [`docs/phases/PHASE_5_MODEL_DOWNLOAD.md`](./docs/phases/PHASE_5_MODEL_DOWNLOAD.md).
 
 ## Roadmap
 
@@ -162,8 +170,8 @@ Phase 3 passed its code-level, browser, and Linux Compose gates. Phase 4 is trac
 | 1 | Central API, database, Redis, authentication | Complete |
 | 2 | Agent registration, heartbeat, hardware collection | Complete |
 | 3 | Real server and GPU integration | Complete |
-| 4 | Model inventory and directory scanning | In progress |
-| 5 | Hugging Face and ModelScope downloads | Planned |
+| 4 | Model inventory and directory scanning | Complete |
+| 5 | Hugging Face and ModelScope downloads | In progress |
 | 6 | Docker and vLLM deployment lifecycle | Planned |
 | 7 | OpenAI-compatible API testing | Planned |
 | 8 | Historical metrics and notifications | Planned |

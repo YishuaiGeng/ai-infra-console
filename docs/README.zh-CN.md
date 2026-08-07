@@ -1,6 +1,6 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-4%20Model%20Inventory-2563eb)](./DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-5%20Model%20Download-2563eb)](./DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](../LICENSE)
 
@@ -11,7 +11,7 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 ![AI Infra Console Dashboard](./assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> Server 和 GPU 页面现已接入真实 Central API 与出站 Agent 数据。Phase 4 正在以受限目录扫描替换 Installed Models 的剩余 Fixture；模型下载和部署生命周期仍属于后续阶段。
+> Server、GPU 与 Installed Models 页面现已接入真实 Central API 与出站 Agent 数据。Phase 5 正在以 Provider 搜索和受限 Agent Task 替换模型库与下载 Fixture；部署生命周期仍属于后续阶段。
 
 ## Phase 0 界面覆盖范围（Mock 驱动）
 
@@ -52,6 +52,14 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 - Dashboard、Servers、Server Detail 和 GPU 双视图均使用真实数据，覆盖在线、离线、CPU-only 和多 GPU 节点。
 - Admin 独占注册与 Agent Token 生命周期操作，Viewer 保留只读权限。
 - 三服务器 Compose Smoke 覆盖 Migration、Agent Heartbeat、SSE、Web BFF 和权限边界。
+
+## Phase 4 模型清单（已完成）
+
+- Agent 本地模型目录白名单和有界、只读文件系统扫描。
+- 支持 Safetensors、PyTorch bin、独立 GGUF、Hugging Face Cache 与本机 Ollama Discovery。
+- 在多服务器间聚合同一逻辑模型及其物理位置，扫描失败时保留最后一次清单。
+- 提供认证后的清单、模型详情、汇总和服务器目录 API，并通过 SSE 刷新。
+- Installed Models 与 Server Detail Models 已接入真实数据，并提供 Admin 独占的默认目录选择。
 
 ## 产品主链路
 
@@ -152,7 +160,7 @@ ai-infra-console/
 └── package.json             # npm workspace 入口
 ```
 
-Phase 3 已通过代码级、浏览器和 Linux Compose 阶段门。Phase 4 代码级计划见 [`docs/phases/PHASE_4_MODEL_INVENTORY.md`](./phases/PHASE_4_MODEL_INVENTORY.md)。
+Phase 4 已通过代码级、浏览器和 Linux Compose 阶段门。Phase 5 代码级计划见 [`docs/phases/PHASE_5_MODEL_DOWNLOAD.md`](./phases/PHASE_5_MODEL_DOWNLOAD.md)。
 
 ## Roadmap
 
@@ -162,8 +170,8 @@ Phase 3 已通过代码级、浏览器和 Linux Compose 阶段门。Phase 4 代�
 | 1 | Central API、数据库、Redis、认证 | 已完成 |
 | 2 | Agent 注册、心跳、硬件采集 | 已完成 |
 | 3 | 接入真实服务器和 GPU | 已完成 |
-| 4 | 模型目录扫描与 Inventory | 进行中 |
-| 5 | Hugging Face / ModelScope 下载 | 计划中 |
+| 4 | 模型目录扫描与 Inventory | 已完成 |
+| 5 | Hugging Face / ModelScope 下载 | 进行中 |
 | 6 | Docker / vLLM 部署生命周期 | 计划中 |
 | 7 | OpenAI Compatible API 测试 | 计划中 |
 | 8 | 历史指标与通知 | 计划中 |

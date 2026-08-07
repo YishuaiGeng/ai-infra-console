@@ -21,7 +21,8 @@
 | Phase 1 | 已完成 | Web、API 与五服务 Compose 门禁通过，PostgreSQL Migration、认证和 Worker 已有运行时证据 |
 | Phase 2 | 已完成 | Agent 注册、采集、心跳、白名单操作及 Linux Compose 运行时门禁全部通过 |
 | Phase 3 | 已完成 | 真实 Server/GPU API、SSE、Web Session 与多服务器页面已通过 Run 31207075696 |
-| Phase 4 | 进行中 | 正在执行受限模型目录配置、Agent 扫描、Ollama Discovery 与真实 Installed Models |
+| Phase 4 | 已完成 | 模型目录策略、Agent 扫描、Ollama Discovery、真实 Installed Models 与 Compose 门禁通过 |
+| Phase 5 | 进行中 | 正在执行 Provider 搜索、受限 Agent 下载任务、进度控制和安全删除 |
 
 Phase 0 分步结果：
 
@@ -444,6 +445,8 @@ System
 
 ## 9. Phase 5：Model Download
 
+代码级任务、技术决策、证据要求和阶段门详见 [`docs/phases/PHASE_5_MODEL_DOWNLOAD.md`](./phases/PHASE_5_MODEL_DOWNLOAD.md)。Phase 5 必须先完成该清单，再进入 Phase 6。
+
 ### 目标
 
 实现 Hugging Face / ModelScope 搜索与指定服务器下载模型。
@@ -681,7 +684,7 @@ Phase 0 已按以下顺序执行完成：
 Phase 0.1 -> Phase 0.2 -> Phase 0.3 -> Phase 0.4 -> Phase 0.5 -> Phase 0.6 -> Phase 0.7 -> Phase 0.8
 ```
 
-维护者已于 2026-08-07 指示继续后续阶段。Phase 1 至 Phase 3 已于 2026-08-08 通过本地自动化、浏览器与 GitHub Actions Compose 门禁；当前正在执行 Phase 4，并采用固定循环：细化代码级任务、实现、自动化校验、运行时验收、更新文档、通过阶段门，然后才细化下一个 Phase。
+维护者已于 2026-08-07 指示继续后续阶段。Phase 1 至 Phase 4 已于 2026-08-08 通过本地自动化、浏览器与 GitHub Actions Compose 门禁；当前正在执行 Phase 5，并采用固定循环：细化代码级任务、实现、自动化校验、运行时验收、更新文档、通过阶段门，然后才细化下一个 Phase。
 
 部署目标与主机修改边界记录在 [`docs/DEPLOYMENT_TARGETS.md`](./DEPLOYMENT_TARGETS.md)：Central stack 最终部署到 `xiao-pro6000`，模型可下载到 `xiao-pro6000` 或 `xiao-cpu`，`asus-2024` 与 `asus-4090` 保持备用且不执行修改操作。
 
@@ -723,4 +726,14 @@ Web / API / Agent tests                            PASS (8 / 31 / 28)
 GitHub Actions web/api/agent/compose               PASS (run 31207075696)
 Compose three-server/API/SSE/Web BFF smoke          PASS
 Browser live refresh/list/detail/logout             PASS
+```
+
+Phase 4 最终验证：
+
+```text
+npm run check                                      PASS
+Web / API / Agent tests                            PASS (11 / 36 / 38; Windows 1 skip)
+GitHub Actions web/api/agent/compose               PASS (run 31210327473)
+Compose model scan/API/BFF/SSE smoke                PASS
+Browser inventory/search/detail/server-directory   PASS (1280x720 available viewport)
 ```
