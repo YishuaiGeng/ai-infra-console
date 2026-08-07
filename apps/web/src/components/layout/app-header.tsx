@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Bell,
@@ -16,7 +17,12 @@ import {
 import { useTheme } from "next-themes";
 
 import { breadcrumbLabels } from "@/config/navigation";
-import { deployments, getDeployment, getServer } from "@/mocks/data";
+import { getDeployment } from "@/mocks/data";
+import {
+  useInfrastructureSummary,
+  useServers,
+  useSession,
+} from "@/hooks/use-infrastructure";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -75,12 +81,15 @@ function ThemeToggle() {
 
 function Breadcrumbs() {
   const pathname = usePathname();
+  const serversQuery = useServers();
   const segments = pathname.split("/").filter(Boolean);
 
   const getLabel = (segment: string, index: number) => {
     if (breadcrumbLabels[segment]) return breadcrumbLabels[segment];
     const previous = segments[index - 1];
-    if (previous === "servers") return getServer(segment)?.name ?? segment;
+    if (previous === "servers") {
+      return serversQuery.data?.find((server) => server.id === segment)?.name ?? segment;
+    }
     if (previous === "deployments")
       return getDeployment(segment)?.name ?? segment;
     return segment;
@@ -118,10 +127,17 @@ function Breadcrumbs() {
 }
 
 export function AppHeader() {
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const activeDeployments = deployments.filter(
-    (deployment) => deployment.status === "running",
-  ).length;
+  const summaryQuery = useInfrastructureSummary();
+  const sessionQuery = useSession();
+  const summary = summaryQuery.data;
+
+  const signOut = async () => {
+    await fetch("/api/session", { method: "DELETE" });
+    router.replace("/login");
+    router.refresh();
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6">
@@ -152,7 +168,7 @@ export function AppHeader() {
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-40" />
             <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
           </span>
-          {activeDeployments} runtimes active
+          {summary?.online_server_count ?? 0} servers online
         </div>
         <ThemeToggle />
         <DropdownMenu>
@@ -187,8 +203,8 @@ export function AppHeader() {
                 Infrastructure summary
               </div>
               <p className="pl-6 text-xs leading-5 text-muted-foreground">
-                3 servers online, 4 GPUs available. One deployment needs
-                attention.
+                {summary?.online_server_count ?? 0} servers online and{" "}
+                {summary?.available_gpu_count ?? 0} GPUs available.
               </p>
             </div>
           </DropdownMenuContent>
@@ -204,15 +220,18 @@ export function AppHeader() {
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuGroup>
               <DropdownMenuLabel>
-                <span className="block">Administrator</span>
+                <span className="block">
+                  {sessionQuery.data?.username ?? "Account"}
+                </span>
                 <span className="block text-xs font-normal text-muted-foreground">
-                  Local session
+                  {sessionQuery.data?.role ?? "Authenticated session"}
                 </span>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Sign out</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void signOut()}>
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

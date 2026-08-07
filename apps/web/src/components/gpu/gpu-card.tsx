@@ -1,13 +1,10 @@
 import { Activity, Flame, Gauge, Zap } from "lucide-react";
 
 import type { GPU } from "@/types";
-import { getServer } from "@/mocks/data";
 import { GPUMemoryBar } from "@/components/gpu/gpu-memory-bar";
 import { GPUStatusBadge } from "@/components/gpu/gpu-status-badge";
 
 export function GPUCard({ gpu }: { gpu: GPU }) {
-  const server = getServer(gpu.serverId);
-
   return (
     <article className="overflow-hidden rounded-md border bg-card">
       <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
@@ -20,7 +17,7 @@ export function GPUCard({ gpu }: { gpu: GPU }) {
           </div>
           <h3 className="mt-1 truncate text-sm font-semibold">{gpu.name}</h3>
           <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
-            {server?.name}
+            {gpu.serverName ?? "Unknown server"}
           </p>
         </div>
         <Activity className="size-4 text-muted-foreground" />

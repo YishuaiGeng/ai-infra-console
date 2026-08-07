@@ -6,16 +6,16 @@ from sqlalchemy import select
 from ai_infra_api.core.errors import AppError
 from ai_infra_api.core.middleware import request_id_from
 from ai_infra_api.db.models import Server, ServerAgent
-from ai_infra_api.dependencies import AdminUser, DatabaseSession
+from ai_infra_api.dependencies import AdminUser, CurrentUser, DatabaseSession
 from ai_infra_api.schemas.agent import (
     AgentTokenResponse,
     ServerRegistrationRequest,
     ServerRegistrationResponse,
-    ServerStatusResponse,
 )
-from ai_infra_api.services.agent_telemetry import mark_stale_servers_offline
+from ai_infra_api.schemas.infrastructure import ServerDetailResponse, ServerSummaryResponse
 from ai_infra_api.services.agent_tokens import revoke_agent_token, rotate_agent_token
 from ai_infra_api.services.audit import record_audit
+from ai_infra_api.services.infrastructure import get_server_detail, list_server_summaries
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 
@@ -115,13 +115,34 @@ async def revoke_token(
     )
 
 
-@router.get("", response_model=list[ServerStatusResponse])
+@router.get("", response_model=list[ServerSummaryResponse])
 async def list_servers(
     request: Request,
     session: DatabaseSession,
-    _admin: AdminUser,
-) -> list[Server]:
-    await mark_stale_servers_offline(
-        session, threshold_seconds=request.app.state.settings.agent_offline_seconds
+    _user: CurrentUser,
+) -> list[ServerSummaryResponse]:
+    return await list_server_summaries(
+        session,
+        offline_seconds=request.app.state.settings.agent_offline_seconds,
     )
-    return list(await session.scalars(select(Server).order_by(Server.name)))
+
+
+@router.get("/{server_id}", response_model=ServerDetailResponse)
+async def server_detail(
+    server_id: uuid.UUID,
+    request: Request,
+    session: DatabaseSession,
+    _user: CurrentUser,
+) -> ServerDetailResponse:
+    result = await get_server_detail(
+        session,
+        server_id,
+        offline_seconds=request.app.state.settings.agent_offline_seconds,
+    )
+    if result is None:
+        raise AppError(
+            status_code=404,
+            code="server_not_found",
+            message="The server does not exist.",
+        )
+    return result

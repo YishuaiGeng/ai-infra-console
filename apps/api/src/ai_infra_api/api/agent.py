@@ -7,6 +7,7 @@ from ai_infra_api.dependencies import CurrentAgent, DatabaseSession
 from ai_infra_api.schemas.agent import AgentReportResponse, AgentSnapshot
 from ai_infra_api.services.agent_telemetry import persist_agent_snapshot
 from ai_infra_api.services.audit import record_audit
+from ai_infra_api.services.infrastructure_events import publish_server_update
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -56,6 +57,7 @@ async def register(
         resource_type="server",
         resource_id=str(agent.server_id),
     )
+    await publish_server_update(request.app.state.redis, result.server_id)
     return result
 
 
@@ -66,4 +68,6 @@ async def heartbeat(
     session: DatabaseSession,
     agent: CurrentAgent,
 ) -> AgentReportResponse:
-    return await save_report(snapshot, request, session, agent)
+    result = await save_report(snapshot, request, session, agent)
+    await publish_server_update(request.app.state.redis, result.server_id)
+    return result

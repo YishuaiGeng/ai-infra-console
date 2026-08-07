@@ -1,4 +1,9 @@
-export type ServerStatus = "online" | "offline" | "warning";
+export type ServerStatus =
+  | "online"
+  | "offline"
+  | "pending"
+  | "warning"
+  | "unknown";
 export type ServerType = "local" | "cloud";
 
 export type GPUStatus =
@@ -60,6 +65,9 @@ export interface Server {
 export interface GPU {
   id: string;
   serverId: string;
+  serverName?: string;
+  serverType?: ServerType;
+  serverHost?: string;
   index: number;
   name: string;
   status: GPUStatus;
@@ -76,6 +84,8 @@ export interface GPU {
 export interface GPUProcess {
   id: string;
   gpuId: string;
+  gpuIndex?: number;
+  gpuName?: string;
   pid: number;
   user: string;
   command: string;

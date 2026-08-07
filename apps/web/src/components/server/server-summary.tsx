@@ -27,11 +27,11 @@ function SummaryItem({
 
 export function ServerSummary({ server }: { server: Server }) {
   const ramPercent =
-    server.ramUsedGb === null
+    server.ramUsedGb === null || server.ramTotalGb === 0
       ? null
       : (server.ramUsedGb / server.ramTotalGb) * 100;
   const diskPercent =
-    server.diskUsedGb === null
+    server.diskUsedGb === null || server.diskTotalGb === 0
       ? null
       : (server.diskUsedGb / server.diskTotalGb) * 100;
 

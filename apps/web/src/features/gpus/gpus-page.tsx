@@ -5,7 +5,7 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { Grid2X2, List, Thermometer, Zap } from "lucide-react";
 
 import type { GPU } from "@/types";
-import { getServer, gpus, servers } from "@/mocks/data";
+import { useGpus, useServers } from "@/hooks/use-infrastructure";
 import { cn } from "@/lib/utils";
 import { DataTable, dataTableFeatures, type DataTableColumn } from "@/components/shared/data-table";
 import { GPUCard } from "@/components/gpu/gpu-card";
@@ -15,6 +15,9 @@ import { GPUUtilization } from "@/components/gpu/gpu-utilization";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionPanel } from "@/components/shared/section-panel";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
+import { TableLoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -26,22 +29,23 @@ import {
 import { Switch } from "@/components/ui/switch";
 
 const helper = createColumnHelper<typeof dataTableFeatures, GPU>();
+const emptyGpus: GPU[] = [];
 
 const columns: DataTableColumn<GPU>[] = helper.columns([
   helper.accessor("serverId", {
     id: "Server",
     header: "Server",
-    cell: ({ getValue }) => {
-      const server = getServer(getValue());
-      return (
-        <div>
-          <div className="font-medium">{server?.name}</div>
-          <div className="font-mono text-[11px] text-muted-foreground">
-            {server?.type} / {server?.ip}
-          </div>
+    cell: ({ row }) => (
+      <div>
+        <div className="font-medium">
+          {row.original.serverName ?? "Unknown server"}
         </div>
-      );
-    },
+        <div className="font-mono text-[11px] text-muted-foreground">
+          {row.original.serverType ?? "local"} /{" "}
+          {row.original.serverHost ?? "Not reported"}
+        </div>
+      </div>
+    ),
     sortFn: "text",
   }),
   helper.accessor("index", {
@@ -115,6 +119,10 @@ const columns: DataTableColumn<GPU>[] = helper.columns([
 ]);
 
 export function GpusPage() {
+  const gpusQuery = useGpus();
+  const serversQuery = useServers();
+  const gpus = gpusQuery.data ?? emptyGpus;
+  const servers = serversQuery.data ?? [];
   const [view, setView] = useState<"table" | "card">("table");
   const [serverId, setServerId] = useState("all");
   const [gpuModel, setGpuModel] = useState("all");
@@ -125,16 +133,15 @@ export function GpusPage() {
   const filtered = useMemo(
     () =>
       gpus.filter((gpu) => {
-        const server = getServer(gpu.serverId);
         return (
           (serverId === "all" || gpu.serverId === serverId) &&
           (gpuModel === "all" || gpu.name === gpuModel) &&
           (status === "all" || gpu.status === status) &&
-          (type === "all" || server?.type === type) &&
+          (type === "all" || (gpu.serverType ?? "local") === type) &&
           (!availableOnly || gpu.status === "available")
         );
       }),
-    [availableOnly, gpuModel, serverId, status, type],
+    [availableOnly, gpuModel, gpus, serverId, status, type],
   );
 
   const filters = (
@@ -220,7 +227,28 @@ export function GpusPage() {
         }
       />
 
-      {view === "table" ? (
+      {gpusQuery.isPending || serversQuery.isPending ? (
+        <SectionPanel title="GPU resources" description="Loading current Agent reports">
+          <TableLoadingSkeleton />
+        </SectionPanel>
+      ) : gpusQuery.isError || serversQuery.isError ? (
+        <ErrorState
+          title="GPU inventory unavailable"
+          message={(gpusQuery.error ?? serversQuery.error)?.message ?? "The request failed."}
+          onRetry={() => {
+            void gpusQuery.refetch();
+            void serversQuery.refetch();
+          }}
+        />
+      ) : gpus.length === 0 ? (
+        <SectionPanel title="GPU resources" description="No GPU inventory reported">
+          <EmptyState
+            icon={Grid2X2}
+            title="No GPUs detected"
+            message="Registered CPU-only servers remain available. GPU devices appear after an Agent heartbeat reports them."
+          />
+        </SectionPanel>
+      ) : view === "table" ? (
         <SectionPanel
           title="GPU resources"
           description={`${filtered.length} of ${gpus.length} devices visible`}
@@ -228,7 +256,7 @@ export function GpusPage() {
           <DataTable
             data={filtered}
             columns={columns}
-            searchText={(gpu) => `${getServer(gpu.serverId)?.name} ${gpu.name} ${gpu.workload ?? "available"}`}
+            searchText={(gpu) => `${gpu.serverName ?? ""} ${gpu.name} ${gpu.workload ?? "available"}`}
             searchPlaceholder="Search GPU or workload..."
             toolbar={filters}
             emptyTitle="No GPUs match"

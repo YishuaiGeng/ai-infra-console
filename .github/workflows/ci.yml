@@ -98,7 +98,7 @@ jobs:
             done
           fi
           exit "$status"
-      - name: Verify migrations, API, authentication, worker, and services
+      - name: Verify migrations, Agent, infrastructure API, SSE, Web BFF, and services
         shell: bash
         run: |
           set +e

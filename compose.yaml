@@ -129,6 +129,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      AI_INFRA_API_INTERNAL_URL: http://api:8000
     depends_on:
       api:
         condition: service_healthy

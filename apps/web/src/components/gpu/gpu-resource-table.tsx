@@ -2,7 +2,6 @@ import { Cpu, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 import type { GPU } from "@/types";
-import { getServer } from "@/mocks/data";
 import { buttonVariants } from "@/components/ui/button";
 import { GPUMemoryBar } from "@/components/gpu/gpu-memory-bar";
 import { GPUStatusBadge } from "@/components/gpu/gpu-status-badge";
@@ -32,9 +31,7 @@ export function GPUResourceTable({ data }: { data: GPU[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((gpu) => {
-            const server = getServer(gpu.serverId);
-            return (
+          {data.map((gpu) => (
               <TableRow key={gpu.id}>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
@@ -43,7 +40,7 @@ export function GPUResourceTable({ data }: { data: GPU[] }) {
                     </span>
                     <div>
                       <div className="text-xs font-medium">
-                        {server?.name}
+                        {gpu.serverName ?? "Unknown server"}
                       </div>
                       <div className="font-mono text-[11px] text-muted-foreground">
                         GPU {gpu.index} / {gpu.name}
@@ -81,22 +78,19 @@ export function GPUResourceTable({ data }: { data: GPU[] }) {
                   )}
                 </TableCell>
                 <TableCell>
-                  {server && (
-                    <Link
-                      href={`/servers/${server.id}`}
-                      className={buttonVariants({
-                        variant: "ghost",
-                        size: "icon-xs",
-                      })}
-                      aria-label={`Open ${server.name}`}
-                    >
-                      <ExternalLink />
-                    </Link>
-                  )}
+                  <Link
+                    href={`/servers/${gpu.serverId}`}
+                    className={buttonVariants({
+                      variant: "ghost",
+                      size: "icon-xs",
+                    })}
+                    aria-label={`Open ${gpu.serverName ?? "server"}`}
+                  >
+                    <ExternalLink />
+                  </Link>
                 </TableCell>
               </TableRow>
-            );
-          })}
+          ))}
         </TableBody>
       </Table>
     </div>

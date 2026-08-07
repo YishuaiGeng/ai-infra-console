@@ -1,4 +1,4 @@
-import { gpuProcesses, getGpu } from "@/mocks/data";
+import type { GPUProcess } from "@/types";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import {
   Table,
@@ -9,11 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function GPUProcessTable({ serverId }: { serverId: string }) {
-  const processes = gpuProcesses.filter(
-    (process) => getGpu(process.gpuId)?.serverId === serverId,
-  );
-
+export function GPUProcessTable({ processes }: { processes: GPUProcess[] }) {
   if (!processes.length) {
     return (
       <div className="px-4 py-10 text-center text-sm text-muted-foreground">
@@ -32,14 +28,14 @@ export function GPUProcessTable({ serverId }: { serverId: string }) {
             <TableHead>User</TableHead>
             <TableHead>Command</TableHead>
             <TableHead>VRAM</TableHead>
-            <TableHead>Started</TableHead>
+            <TableHead>Collected</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {processes.map((process) => (
             <TableRow key={process.id}>
               <TableCell className="font-mono text-xs">
-                GPU {getGpu(process.gpuId)?.index}
+                GPU {process.gpuIndex ?? "--"}
               </TableCell>
               <TableCell className="numeric font-mono text-xs">
                 {process.pid}
