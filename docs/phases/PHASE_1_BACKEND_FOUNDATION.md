@@ -2,7 +2,7 @@
 
 ## Status
 
-- State: Implementation complete; PostgreSQL/Compose runtime gate pending
+- State: Complete (2026-08-08)
 - Entry gate: Phase 0 implementation and automated verification complete
 - Exit gate: every acceptance item in this document has direct test or runtime evidence
 - Scope boundary: no Agent registration, hardware collection, real model download, or deployment execution
@@ -118,8 +118,8 @@ Evidence:
 - [x] Document local development, migrations, authentication bootstrap, and Compose operation.
 - [x] Document the deployment host policy without credentials.
 - [x] Update the root README and development roadmap.
-- [ ] Run frontend and backend lint, typecheck, tests, build, migrations, and runtime smoke tests.
-- [ ] Record exact evidence and unresolved items before opening Phase 2.
+- [x] Run frontend and backend lint, typecheck, tests, build, migrations, and runtime smoke tests.
+- [x] Record exact evidence and unresolved items before opening Phase 2.
 
 ## Current evidence
 
@@ -132,25 +132,30 @@ Recorded on 2026-08-08:
 - Alembic portability smoke: SQLite upgrade, downgrade, and re-upgrade pass; all 15 required tables are verified.
 - `npm run api:smoke`: real HTTP liveness/readiness, admin bootstrap, login, current user, Redis queue, and Worker execution pass using temporary local services.
 - Standalone Compose parser: `config --quiet` passes.
+- `npm run check`: Next.js lint/typecheck/production build and API Ruff/mypy/pytest all pass.
+- GitHub Actions run `31200348566`: Web, API, and Compose jobs all pass on Linux.
+- Compose runtime: all five services become healthy/running; host API readiness reports PostgreSQL and Redis ready.
+- PostgreSQL migration smoke: isolated database upgrade, downgrade, and re-upgrade all pass.
+- Container authentication smoke: bootstrap admin login and `/api/v1/auth/me` pass.
+- Container Worker smoke: RQ processes the fixed health task and returns a JSON result.
 - Phase 0 Next.js lint, typecheck, and production build: pass with 23 generated pages.
 - Ignore checks confirm `.env`, Python environments/build output, Next output, and `服务器资料/` are excluded from Git.
 
-Remaining gate evidence:
+Phase gate result:
 
-- Docker Desktop on the current Windows workstation does not create its engine IPC pipe, even after start and restart attempts. Images have not yet been built and the five-service stack has not been run here.
-- PostgreSQL-specific upgrade/downgrade/re-upgrade, Compose service health, container login, and a container Worker job remain mandatory before Phase 1 can close.
-- Phase 2 remains unopened.
+- The local Windows Docker Desktop engine was unavailable, so the Linux container runtime gate ran in GitHub Actions.
+- No Phase 1 acceptance item remains open. Phase 2 may proceed from this recorded baseline.
 
 ## Exit acceptance
 
-- [ ] `docker compose up -d --build` starts all five services.
+- [x] `docker compose up -d --build` starts all five services.
 - [x] `GET /health/live` returns HTTP 200.
-- [ ] `GET /health/ready` returns HTTP 200 with PostgreSQL and Redis ready.
-- [ ] Alembic upgrade, downgrade, and re-upgrade work on PostgreSQL.
+- [x] `GET /health/ready` returns HTTP 200 with PostgreSQL and Redis ready.
+- [x] Alembic upgrade, downgrade, and re-upgrade work on PostgreSQL.
 - [x] Admin login returns a bearer token and `/api/v1/auth/me` returns the user.
 - [x] API errors use the documented envelope and include a request ID.
 - [x] Worker processes a verification job.
 - [x] Frontend Phase 0 checks still pass.
 - [x] No private host credentials or server records are tracked by Git.
 
-Phase 2 must not start until every item above is checked and backed by current command or runtime output.
+Phase 1 closed after every item above was checked and backed by current command or runtime output.

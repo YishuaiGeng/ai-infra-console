@@ -1,6 +1,6 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-0%20UI%20Foundation-2563eb)](./docs/DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-2%20Agent-f59e0b)](./docs/DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](./LICENSE)
 
@@ -11,7 +11,7 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 ![AI Infra Console dashboard](./docs/assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> The Phase 0 web UI still uses one local mock dataset and is not yet connected to the backend. Phase 1 Central API work is in progress, including authentication, schema migrations, Redis, and a worker. There is no server Agent, real hardware integration, model download, Docker lifecycle action, or vLLM deployment yet.
+> The Phase 0 web UI still uses one local mock dataset and is not yet connected to the backend. Phase 1 Central API, authentication, migrations, Redis, worker, and five-service Compose stack are complete. Phase 2 Agent development is in progress; real model download, deployment lifecycle actions, and vLLM deployment are not implemented yet.
 
 ## Phase 0 UI coverage (mock-backed)
 
@@ -25,7 +25,7 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 - Light, dark, and system themes with responsive desktop, tablet, and basic mobile layouts.
 - Shared mock data across every page so totals and relationships remain consistent.
 
-## Phase 1 backend (in progress)
+## Phase 1 backend (complete)
 
 - FastAPI application with `/api/v1`, liveness, readiness, and OpenAPI documentation.
 - PostgreSQL-oriented SQLAlchemy schema with 15 tables and an Alembic migration.
@@ -128,15 +128,15 @@ ai-infra-console/
 └── package.json             # npm workspace entry point
 ```
 
-The monorepo will add `apps/agent` during Phase 2 after the Phase 1 gate passes.
+The monorepo is adding `apps/agent` during Phase 2 under the code-level plan in [`docs/phases/PHASE_2_AGENT.md`](./docs/phases/PHASE_2_AGENT.md).
 
 ## Roadmap
 
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | UI Foundation | Complete |
-| 1 | Central API, database, Redis, authentication | In progress |
-| 2 | Agent registration, heartbeat, hardware collection | Planned |
+| 1 | Central API, database, Redis, authentication | Complete |
+| 2 | Agent registration, heartbeat, hardware collection | In progress |
 | 3 | Real server and GPU integration | Planned |
 | 4 | Model inventory and directory scanning | Planned |
 | 5 | Hugging Face and ModelScope downloads | Planned |

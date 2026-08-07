@@ -1,6 +1,6 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-0%20UI%20Foundation-2563eb)](./DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-2%20Agent-f59e0b)](./DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](../LICENSE)
 
@@ -11,7 +11,7 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 ![AI Infra Console Dashboard](./assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> Phase 0 前端仍使用一套本地 Mock 数据，尚未接入后端。Phase 1 Central API 正在实现，已经包含认证、Schema Migration、Redis 和 Worker 基础代码；服务器 Agent、真实硬件接入、模型下载、Docker 生命周期操作和 vLLM 部署仍未实现。
+> Phase 0 前端仍使用一套本地 Mock 数据，尚未接入后端。Phase 1 Central API、认证、Migration、Redis、Worker 与五服务 Compose 栈已经完成。Phase 2 Agent 正在开发；真实模型下载、部署生命周期操作和 vLLM 部署尚未实现。
 
 ## Phase 0 界面覆盖范围（Mock 驱动）
 
@@ -25,7 +25,7 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 - Light、Dark、System 主题与桌面、平板、基础移动端响应式布局。
 - 所有页面共用统一 Mock 数据，确保统计和关联关系一致。
 
-## Phase 1 后端（进行中）
+## Phase 1 后端（已完成）
 
 - FastAPI 应用、`/api/v1`、Liveness、Readiness 和 OpenAPI 文档。
 - 面向 PostgreSQL 的 SQLAlchemy 15 表初始 Schema 和 Alembic Migration。
@@ -128,15 +128,15 @@ ai-infra-console/
 └── package.json             # npm workspace 入口
 ```
 
-Phase 1 阶段门通过后，计划在 Phase 2 新增 `apps/agent`。
+Phase 2 正按照 [`docs/phases/PHASE_2_AGENT.md`](./phases/PHASE_2_AGENT.md) 的代码级计划新增 `apps/agent`。
 
 ## Roadmap
 
 | Phase | 范围 | 状态 |
 | --- | --- | --- |
 | 0 | UI Foundation | 已完成 |
-| 1 | Central API、数据库、Redis、认证 | 进行中 |
-| 2 | Agent 注册、心跳、硬件采集 | 计划中 |
+| 1 | Central API、数据库、Redis、认证 | 已完成 |
+| 2 | Agent 注册、心跳、硬件采集 | 进行中 |
 | 3 | 接入真实服务器和 GPU | 计划中 |
 | 4 | 模型目录扫描与 Inventory | 计划中 |
 | 5 | Hugging Face / ModelScope 下载 | 计划中 |

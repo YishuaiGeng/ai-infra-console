@@ -5,9 +5,9 @@
 ## 1. 当前仓库状态
 
 - Phase 0 UI Foundation 已于 2026-08-07 完成，前端位于 `apps/web`。
-- 当前目录已初始化为 git 仓库，默认分支为 `main`，尚未配置远程仓库。
+- 当前目录已初始化为 git 仓库，默认分支为 `main`，并同步到 `git@github.com:YishuaiGeng/ai-infra-console.git`。
 - 根目录使用 npm workspaces，统一提供 `dev`、`lint`、`typecheck`、`build` 和 `check` 命令。
-- `docs/` 目录原本不存在，开发原则中提到的 `docs/PRD.md` 与 `docs/UI_DESIGN_SPEC.md` 目前也不存在。
+- `docs/` 已包含开发 Roadmap、阶段代码任务、后端开发和部署目标文档；原始 PRD 仍保留在仓库根目录。
 - 根目录已有两份核心文档：
   - `AI Infrastructure Control Center.md`：完整 PRD 与分阶段规划。
   - `一、开发原则.md`：当前开发约束，重点要求先做 Phase 0 UI Foundation。
@@ -17,8 +17,9 @@
 
 | Phase | 状态 | 说明 |
 | --- | --- | --- |
-| Phase 0 | 已完成，等待 UI 审查 | 所有必需路由、统一 Mock Data、主题、交互、响应式与开源文档已完成 |
-| Phase 1 | 进行中 | 已获维护者继续开发指令，先执行代码级拆分，再实现和验收 Backend Foundation |
+| Phase 0 | 已完成 | 所有必需路由、统一 Mock Data、主题、交互、响应式与开源文档已完成 |
+| Phase 1 | 已完成 | Web、API 与五服务 Compose 门禁通过，PostgreSQL Migration、认证和 Worker 已有运行时证据 |
+| Phase 2 | 进行中 | 已细化 Agent 代码级任务，按注册、采集、心跳、白名单操作和 Linux 运行顺序开发 |
 
 Phase 0 分步结果：
 
@@ -336,6 +337,8 @@ System
 - API 返回统一错误格式。
 
 ## 6. Phase 2：Agent
+
+代码级任务、技术决策、证据要求和阶段门详见 [`docs/phases/PHASE_2_AGENT.md`](./phases/PHASE_2_AGENT.md)。Phase 2 必须先完成该清单，再进入 Phase 3。
 
 ### 目标
 
@@ -672,7 +675,7 @@ Phase 0 已按以下顺序执行完成：
 Phase 0.1 -> Phase 0.2 -> Phase 0.3 -> Phase 0.4 -> Phase 0.5 -> Phase 0.6 -> Phase 0.7 -> Phase 0.8
 ```
 
-维护者已于 2026-08-07 指示继续后续阶段。当前正在执行 Phase 1，并采用固定循环：细化代码级任务、实现、自动化校验、运行时验收、更新文档、通过阶段门，然后才细化下一个 Phase。
+维护者已于 2026-08-07 指示继续后续阶段。Phase 1 已于 2026-08-08 通过本地自动化与 GitHub Actions Compose 门禁；当前正在执行 Phase 2，并采用固定循环：细化代码级任务、实现、自动化校验、运行时验收、更新文档、通过阶段门，然后才细化下一个 Phase。
 
 部署目标与主机修改边界记录在 [`docs/DEPLOYMENT_TARGETS.md`](./DEPLOYMENT_TARGETS.md)：Central stack 最终部署到 `xiao-pro6000`，模型可下载到 `xiao-pro6000` 或 `xiao-cpu`，`asus-2024` 与 `asus-4090` 保持备用且不执行修改操作。
 
@@ -685,3 +688,13 @@ npm run build      PASS (23 static pages)
 ```
 
 浏览器检查已覆盖 1440x900 和 390x844 视口、全部 12 条必需路由，以及 Add Server、Download Model、Deploy Model、API Test、Theme、Sidebar、Filter 和 Tabs 等关键交互。
+
+Phase 1 最终验证：
+
+```text
+npm run check                         PASS
+npm run api:smoke                     PASS
+GitHub Actions web/api/compose        PASS (run 31200348566)
+PostgreSQL upgrade/downgrade/upgrade  PASS
+Container auth + RQ Worker smoke      PASS
+```
