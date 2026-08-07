@@ -52,7 +52,11 @@ def postgres_exec(*arguments: str) -> str:
 
 
 def compose_agent(
-    command: str, token: str, *, build: bool = False
+    command: str,
+    token: str,
+    *,
+    build: bool = False,
+    check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     environment = os.environ.copy()
     environment["AI_INFRA_AGENT_TOKEN"] = token
@@ -62,7 +66,7 @@ def compose_agent(
     arguments.extend(("-e", "AI_INFRA_AGENT_TOKEN", "agent", command))
     return subprocess.run(
         arguments,
-        check=False,
+        check=check,
         capture_output=True,
         env=environment,
         text=True,
@@ -261,23 +265,13 @@ def main() -> None:
         ),
     )
     agent_token = str(registration["registration_token"])
-    agent_registration = run_check(
+    run_check(
         "Agent container registration",
         lambda: compose_agent("register", agent_token, build=True),
     )
-    if agent_registration.returncode != 0:
-        raise RuntimeError(
-            "Agent registration container failed: "
-            f"{agent_registration.stderr.strip() or agent_registration.stdout.strip()}"
-        )
-    agent_heartbeat = run_check(
+    run_check(
         "Agent container heartbeat", lambda: compose_agent("heartbeat", agent_token)
     )
-    if agent_heartbeat.returncode != 0:
-        raise RuntimeError(
-            "Agent heartbeat container failed: "
-            f"{agent_heartbeat.stderr.strip() or agent_heartbeat.stdout.strip()}"
-        )
     server_inventory = run_check(
         "Agent online inventory",
         lambda: request_json(
@@ -301,7 +295,8 @@ def main() -> None:
         ),
     )
     revoked_heartbeat = run_check(
-        "revoked Agent rejection", lambda: compose_agent("heartbeat", agent_token)
+        "revoked Agent rejection",
+        lambda: compose_agent("heartbeat", agent_token, check=False),
     )
     if revoked_heartbeat.returncode == 0:
         raise RuntimeError("Revoked Agent token was accepted")
