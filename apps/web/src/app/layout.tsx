@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import type { ReactNode } from "react";
 
 import { AppProviders } from "@/components/app-providers";
 
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
     "A lightweight control plane for AI servers, GPUs, models, and inference runtimes.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
