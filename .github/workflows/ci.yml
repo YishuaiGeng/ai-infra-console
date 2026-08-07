@@ -82,7 +82,21 @@ jobs:
           fi
           exit "$status"
       - name: Verify migrations, API, authentication, worker, and services
-        run: python apps/api/scripts/compose_smoke.py
+        shell: bash
+        run: |
+          set +e
+          python apps/api/scripts/compose_smoke.py 2>&1 | tee compose-smoke.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "### Compose verification failure" >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 100 compose-smoke.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 50 compose-smoke.log | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          fi
+          exit "$status"
       - name: Show service logs on failure
         if: failure()
         run: docker compose logs --no-color

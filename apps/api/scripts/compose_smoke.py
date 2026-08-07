@@ -1,10 +1,14 @@
 import json
 import os
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
-from typing import Any
+from collections.abc import Callable
+from typing import Any, TypeVar
+
+T = TypeVar("T")
 
 
 def compose_exec(*arguments: str) -> str:
@@ -15,6 +19,31 @@ def compose_exec(*arguments: str) -> str:
         text=True,
     )
     return result.stdout.strip()
+
+
+def run_check(name: str, check: Callable[[], T]) -> T:
+    print(f"[compose-smoke] starting: {name}", flush=True)
+    started_at = time.monotonic()
+    try:
+        result = check()
+    except Exception as exc:
+        elapsed = time.monotonic() - started_at
+        print(
+            f"[compose-smoke] failed: {name} ({elapsed:.1f}s): {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        if isinstance(exc, subprocess.CalledProcessError):
+            if exc.stdout:
+                print(exc.stdout.rstrip(), file=sys.stderr, flush=True)
+            if exc.stderr:
+                print(exc.stderr.rstrip(), file=sys.stderr, flush=True)
+        if isinstance(exc, urllib.error.HTTPError):
+            print(exc.read().decode("utf-8", errors="replace"), file=sys.stderr, flush=True)
+        raise
+    elapsed = time.monotonic() - started_at
+    print(f"[compose-smoke] passed: {name} ({elapsed:.1f}s)", flush=True)
+    return result
 
 
 def request_json(
@@ -115,20 +144,28 @@ def main() -> None:
     if not password:
         raise RuntimeError("AI_INFRA_BOOTSTRAP_ADMIN_PASSWORD is required for Compose smoke")
 
-    wait_for_ready(base_url)
-    compose_exec("alembic", "downgrade", "base")
-    compose_exec("alembic", "upgrade", "head")
-    compose_exec("ai-infra-bootstrap")
-    readiness = wait_for_ready(base_url)
+    run_check("initial readiness", lambda: wait_for_ready(base_url))
+    run_check("migration downgrade", lambda: compose_exec("alembic", "downgrade", "base"))
+    run_check("migration upgrade", lambda: compose_exec("alembic", "upgrade", "head"))
+    run_check("administrator bootstrap", lambda: compose_exec("ai-infra-bootstrap"))
+    readiness = run_check("post-migration readiness", lambda: wait_for_ready(base_url))
 
-    login = request_json(
-        f"{base_url}/api/v1/auth/login",
-        method="POST",
-        payload={"username": username, "password": password},
+    login = run_check(
+        "administrator login",
+        lambda: request_json(
+            f"{base_url}/api/v1/auth/login",
+            method="POST",
+            payload={"username": username, "password": password},
+        ),
     )
-    current_user = request_json(f"{base_url}/api/v1/auth/me", token=str(login["access_token"]))
-    worker = verify_worker()
-    services = verify_service_state()
+    current_user = run_check(
+        "authenticated identity",
+        lambda: request_json(
+            f"{base_url}/api/v1/auth/me", token=str(login["access_token"])
+        ),
+    )
+    worker = run_check("worker job", verify_worker)
+    services = run_check("service states", verify_service_state)
 
     print(
         json.dumps(
