@@ -64,14 +64,19 @@ def compose_agent(
     if build:
         arguments.append("--build")
     arguments.extend(("-e", "AI_INFRA_AGENT_TOKEN", "agent", command))
-    return subprocess.run(
+    result = subprocess.run(
         arguments,
-        check=check,
+        check=False,
         capture_output=True,
         env=environment,
         text=True,
         timeout=120,
     )
+    if check and result.returncode != 0:
+        output = result.stderr.strip() or result.stdout.strip()
+        detail = " | ".join(line.strip() for line in output.splitlines()[-8:] if line.strip())
+        raise RuntimeError(f"Agent container {command} failed: {detail[:1800]}")
+    return result
 
 
 def run_check(name: str, check: Callable[[], T]) -> T:
