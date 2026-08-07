@@ -1,6 +1,6 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-3%20Server%20Integration-2563eb)](./DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-4%20Model%20Inventory-2563eb)](./DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](../LICENSE)
 
@@ -11,7 +11,7 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 ![AI Infra Console Dashboard](./assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> Phase 0 前端仍使用一套本地 Mock 数据，Phase 3 正在把基础设施页面接入真实数据。Phase 1 Central 栈与 Phase 2 出站 Agent 已经完成；真实模型下载、部署生命周期操作和 vLLM 部署尚未实现。
+> Server 和 GPU 页面现已接入真实 Central API 与出站 Agent 数据。Phase 4 正在以受限目录扫描替换 Installed Models 的剩余 Fixture；模型下载和部署生命周期仍属于后续阶段。
 
 ## Phase 0 界面覆盖范围（Mock 驱动）
 
@@ -44,6 +44,15 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 - 只允许三个只读白名单操作；不监听入站端口，不提供通用命令执行。
 - 非 root 容器、加固 systemd 模板、wheel 安装脚本、退避重试和 CPU-only 降级。
 
+## Phase 3 基础设施接入（已完成）
+
+- 已认证的服务器、服务器详情、GPU 和基础设施汇总 Read API。
+- 使用 Secure HttpOnly Cookie 的同源 Web BFF，API Bearer Token 不进入客户端存储。
+- Redis SSE 失效通知与有界轮询恢复机制。
+- Dashboard、Servers、Server Detail 和 GPU 双视图均使用真实数据，覆盖在线、离线、CPU-only 和多 GPU 节点。
+- Admin 独占注册与 Agent Token 生命周期操作，Viewer 保留只读权限。
+- 三服务器 Compose Smoke 覆盖 Migration、Agent Heartbeat、SSE、Web BFF 和权限边界。
+
 ## 产品主链路
 
 以下是产品目标链路；Phase 0 只在浏览器中模拟相关交互。
@@ -69,7 +78,7 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 | Services | `/apis` |
 | System | `/activity`、`/settings` |
 
-根路由 `/` 会重定向到 `/dashboard`。动态路由可使用 Mock 示例 `/servers/srv-lab-4090-01` 和 `/deployments/dep-qwen32`。
+根路由 `/` 会重定向到 `/dashboard`。服务器详情使用真实 API 返回的 ID；`/deployments/dep-qwen32` 在 Phase 6 前仍是 Fixture 示例。
 
 ## 技术栈
 
@@ -133,7 +142,7 @@ ai-infra-console/
 │           ├── components/  # 基础 UI 与业务组件
 │           ├── config/      # 导航和产品配置
 │           ├── features/    # 页面级功能组合
-│           ├── mocks/       # 唯一 Mock 数据源
+│           ├── mocks/       # 隔离给后续阶段使用的 Fixture
 │           ├── stores/      # 客户端 UI 状态
 │           └── types/       # 领域类型
 ├── compose.yaml
@@ -143,7 +152,7 @@ ai-infra-console/
 └── package.json             # npm workspace 入口
 ```
 
-`apps/agent` 已通过代码级任务和 Linux Compose 阶段门。Phase 3 代码级计划见 [`docs/phases/PHASE_3_SERVER_INTEGRATION.md`](./phases/PHASE_3_SERVER_INTEGRATION.md)。
+Phase 3 已通过代码级、浏览器和 Linux Compose 阶段门。Phase 4 代码级计划见 [`docs/phases/PHASE_4_MODEL_INVENTORY.md`](./phases/PHASE_4_MODEL_INVENTORY.md)。
 
 ## Roadmap
 
@@ -152,15 +161,15 @@ ai-infra-console/
 | 0 | UI Foundation | 已完成 |
 | 1 | Central API、数据库、Redis、认证 | 已完成 |
 | 2 | Agent 注册、心跳、硬件采集 | 已完成 |
-| 3 | 接入真实服务器和 GPU | 进行中 |
-| 4 | 模型目录扫描与 Inventory | 计划中 |
+| 3 | 接入真实服务器和 GPU | 已完成 |
+| 4 | 模型目录扫描与 Inventory | 进行中 |
 | 5 | Hugging Face / ModelScope 下载 | 计划中 |
 | 6 | Docker / vLLM 部署生命周期 | 计划中 |
 | 7 | OpenAI Compatible API 测试 | 计划中 |
 | 8 | 历史指标与通知 | 计划中 |
 | 9 | Accessibility 与 UI Polish | 计划中 |
 
-项目会在每个 Phase 结束后停下审查，不跨阶段提前实现。完整安排见 [开发 Roadmap](./DEVELOPMENT_ROADMAP.md) 和 [产品需求文档](../AI%20Infrastructure%20Control%20Center.md)。
+项目在每个 Phase 结束时执行明确验收门，通过后再进入下一阶段。完整安排见 [开发 Roadmap](./DEVELOPMENT_ROADMAP.md) 和 [产品需求文档](../AI%20Infrastructure%20Control%20Center.md)。
 
 ## 安全边界
 

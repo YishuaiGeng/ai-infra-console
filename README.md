@@ -1,6 +1,6 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-3%20Server%20Integration-2563eb)](./docs/DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-4%20Model%20Inventory-2563eb)](./docs/DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](./LICENSE)
 
@@ -11,7 +11,7 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 ![AI Infra Console dashboard](./docs/assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> The Phase 0 web UI still uses one local mock dataset and is being connected to real infrastructure data in Phase 3. The Phase 1 Central stack and Phase 2 outbound Agent are complete. Real model download, deployment lifecycle actions, and vLLM deployment are not implemented yet.
+> Server and GPU views now use the real Central API and outbound Agent data. Phase 4 is replacing the remaining installed-model fixtures with secure directory scanning. Model download and deployment lifecycle actions remain later roadmap work.
 
 ## Phase 0 UI coverage (mock-backed)
 
@@ -44,6 +44,15 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 - Explicit allowlist for three read-only operations; no inbound port or generic command execution.
 - Non-root container, hardened systemd template, wheel installer, retry/backoff, and CPU-only degradation.
 
+## Phase 3 infrastructure integration (complete)
+
+- Authenticated server, server-detail, GPU, and infrastructure-summary read APIs.
+- Same-origin Web BFF with a Secure HttpOnly session cookie; API bearer tokens never enter client storage.
+- Redis-backed SSE invalidation with bounded polling recovery.
+- Real Dashboard, Servers, Server Detail, and GPU table/card views across online, offline, CPU-only, and multi-GPU nodes.
+- Admin-only server registration and Agent token lifecycle with Viewer read access.
+- Three-server Compose smoke coverage for migrations, Agent heartbeat, SSE, Web BFF, and authorization boundaries.
+
 ## Product workflow
 
 This is the target product workflow. Phase 0 only simulates its interactions in the browser.
@@ -69,7 +78,7 @@ View servers and GPUs
 | Services | `/apis` |
 | System | `/activity`, `/settings` |
 
-The root route `/` redirects to `/dashboard`. Mock-backed examples for dynamic routes are `/servers/srv-lab-4090-01` and `/deployments/dep-qwen32`.
+The root route `/` redirects to `/dashboard`. Server detail routes use IDs returned by the real API; `/deployments/dep-qwen32` remains a fixture-backed example until Phase 6.
 
 ## Tech stack
 
@@ -133,7 +142,7 @@ ai-infra-console/
 │           ├── components/  # UI primitives and domain components
 │           ├── config/      # Navigation and product configuration
 │           ├── features/    # Page-level feature composition
-│           ├── mocks/       # Single mock data source
+│           ├── mocks/       # Fixtures isolated to later roadmap phases
 │           ├── stores/      # Client UI state
 │           └── types/       # Shared domain types
 ├── compose.yaml
@@ -143,7 +152,7 @@ ai-infra-console/
 └── package.json             # npm workspace entry point
 ```
 
-The `apps/agent` package passed its code-level and Linux Compose gate. Phase 3 is tracked in [`docs/phases/PHASE_3_SERVER_INTEGRATION.md`](./docs/phases/PHASE_3_SERVER_INTEGRATION.md).
+Phase 3 passed its code-level, browser, and Linux Compose gates. Phase 4 is tracked in [`docs/phases/PHASE_4_MODEL_INVENTORY.md`](./docs/phases/PHASE_4_MODEL_INVENTORY.md).
 
 ## Roadmap
 
@@ -152,15 +161,15 @@ The `apps/agent` package passed its code-level and Linux Compose gate. Phase 3 i
 | 0 | UI Foundation | Complete |
 | 1 | Central API, database, Redis, authentication | Complete |
 | 2 | Agent registration, heartbeat, hardware collection | Complete |
-| 3 | Real server and GPU integration | In progress |
-| 4 | Model inventory and directory scanning | Planned |
+| 3 | Real server and GPU integration | Complete |
+| 4 | Model inventory and directory scanning | In progress |
 | 5 | Hugging Face and ModelScope downloads | Planned |
 | 6 | Docker and vLLM deployment lifecycle | Planned |
 | 7 | OpenAI-compatible API testing | Planned |
 | 8 | Historical metrics and notifications | Planned |
 | 9 | Accessibility and UI polish | Planned |
 
-Development intentionally stops at the end of each phase for review. See the [detailed development roadmap](./docs/DEVELOPMENT_ROADMAP.md) and the [product requirements](./AI%20Infrastructure%20Control%20Center.md).
+Development uses an explicit verification gate before the next phase begins. See the [detailed development roadmap](./docs/DEVELOPMENT_ROADMAP.md) and the [product requirements](./AI%20Infrastructure%20Control%20Center.md).
 
 ## Security model
 

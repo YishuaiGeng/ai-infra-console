@@ -2,7 +2,7 @@
 
 ## Status
 
-- State: In progress; code-level plan established on 2026-08-08
+- State: Complete; accepted on 2026-08-08
 - Entry gate: Phase 2 complete, including Linux Agent registration/heartbeat/revocation evidence
 - Exit gate: every acceptance item in this document has direct automated, browser, or runtime evidence
 - Scope boundary: real server/GPU visibility only; model inventory, downloads, deployment actions, and historical charts remain in later phases
@@ -24,11 +24,11 @@
 
 ### Phase 3.1 Infrastructure response contracts
 
-- [ ] Add `schemas/infrastructure.py` with server summary, server detail, current server metric, GPU, GPU process, and dashboard summary DTOs.
-- [ ] Represent nullable collector values explicitly and preserve byte/percentage/timestamp units.
-- [ ] Include server identity in each GPU response so GPU components never join against mock data.
-- [ ] Define a typed infrastructure event envelope with event ID, kind, server ID, and timestamp.
-- [ ] Export only public fields; Agent token hashes, audit details, private credentials, and raw collector errors must remain absent.
+- [x] Add `schemas/infrastructure.py` with server summary, server detail, current server metric, GPU, GPU process, and dashboard summary DTOs.
+- [x] Represent nullable collector values explicitly and preserve byte/percentage/timestamp units.
+- [x] Include server identity in each GPU response so GPU components never join against mock data.
+- [x] Define a typed infrastructure event envelope with event ID, kind, server ID, and timestamp.
+- [x] Export only public fields; Agent token hashes, audit details, private credentials, and raw collector errors must remain absent.
 
 Evidence:
 
@@ -36,12 +36,12 @@ Evidence:
 
 ### Phase 3.2 Database read model and status derivation
 
-- [ ] Add `services/infrastructure.py` queries for the server list, one server detail, all current GPUs, and dashboard totals.
-- [ ] Select only the latest `gpu_metrics` row per GPU and avoid per-row database queries.
-- [ ] Join current `server_metrics` and `gpu_processes` into bounded response objects.
-- [ ] Apply the 30-second stale-server transition before infrastructure reads.
-- [ ] Derive GPU status consistently: offline server, active process, high utilization, VRAM pressure, then available.
-- [ ] Return deterministic ordering by server name and GPU index.
+- [x] Add `services/infrastructure.py` queries for the server list, one server detail, all current GPUs, and dashboard totals.
+- [x] Select only the latest `gpu_metrics` row per GPU and avoid per-row database queries.
+- [x] Join current `server_metrics` and `gpu_processes` into bounded response objects.
+- [x] Apply the 30-second stale-server transition before infrastructure reads.
+- [x] Derive GPU status consistently: offline server, active process, high utilization, VRAM pressure, then available.
+- [x] Return deterministic ordering by server name and GPU index.
 
 Evidence:
 
@@ -49,12 +49,12 @@ Evidence:
 
 ### Phase 3.3 Authenticated infrastructure endpoints
 
-- [ ] Expand `GET /api/v1/servers` to return real server summaries for authenticated Admin and Viewer users.
-- [ ] Add `GET /api/v1/servers/{server_id}` for Overview, GPUs, and Processes data.
-- [ ] Add `GET /api/v1/gpus` for the cross-server inventory.
-- [ ] Add `GET /api/v1/infrastructure/summary` for Dashboard server/GPU capacity totals.
-- [ ] Preserve Admin-only registration, token rotation, and token revocation routes.
-- [ ] Return the standard error envelope for unauthorized, missing, and malformed requests.
+- [x] Expand `GET /api/v1/servers` to return real server summaries for authenticated Admin and Viewer users.
+- [x] Add `GET /api/v1/servers/{server_id}` for Overview, GPUs, and Processes data.
+- [x] Add `GET /api/v1/gpus` for the cross-server inventory.
+- [x] Add `GET /api/v1/infrastructure/summary` for Dashboard server/GPU capacity totals.
+- [x] Preserve Admin-only registration, token rotation, and token revocation routes.
+- [x] Return the standard error envelope for unauthorized, missing, and malformed requests.
 
 Evidence:
 
@@ -62,12 +62,12 @@ Evidence:
 
 ### Phase 3.4 Redis-backed SSE updates
 
-- [ ] Add a small event publisher using the existing Redis connection and a versioned channel name.
-- [ ] Publish a server update only after a registration or heartbeat transaction commits.
-- [ ] Add authenticated `GET /api/v1/infrastructure/events` as `text/event-stream` with event IDs and keepalive comments.
-- [ ] Handle Redis disconnects, client cancellation, and stream cleanup without leaking tasks or connections.
-- [ ] Emit or reconcile offline transitions so stale nodes leave the online view promptly.
-- [ ] Document that SSE is an invalidation signal, not the source of record.
+- [x] Add a small event publisher using the existing Redis connection and a versioned channel name.
+- [x] Publish a server update only after a registration or heartbeat transaction commits.
+- [x] Add authenticated `GET /api/v1/infrastructure/events` as `text/event-stream` with event IDs and keepalive comments.
+- [x] Handle Redis disconnects, client cancellation, and stream cleanup without leaking tasks or connections.
+- [x] Emit or reconcile offline transitions so stale nodes leave the online view promptly.
+- [x] Document that SSE is an invalidation signal, not the source of record.
 
 Evidence:
 
@@ -75,12 +75,12 @@ Evidence:
 
 ### Phase 3.5 Web session and same-origin API boundary
 
-- [ ] Add a server-only Central API client configured by `AI_INFRA_API_INTERNAL_URL`.
-- [ ] Add login, current-session, and logout route handlers that set/delete a Secure HttpOnly SameSite cookie.
-- [ ] Add authenticated proxy handlers for infrastructure reads and the SSE stream; never serialize the API bearer token to client code.
-- [ ] Add a focused login screen and redirect unauthenticated console requests to it.
-- [ ] Map Central error envelopes into stable Web errors and clear expired sessions on HTTP 401.
-- [ ] Add Compose/environment configuration for the internal API URL without exposing host credentials.
+- [x] Add a server-only Central API client configured by `AI_INFRA_API_INTERNAL_URL`.
+- [x] Add login, current-session, and logout route handlers that set/delete a Secure HttpOnly SameSite cookie.
+- [x] Add authenticated proxy handlers for infrastructure reads and the SSE stream; never serialize the API bearer token to client code.
+- [x] Add a focused login screen and redirect unauthenticated console requests to it.
+- [x] Map Central error envelopes into stable Web errors and clear expired sessions on HTTP 401.
+- [x] Add Compose/environment configuration for the internal API URL without exposing host credentials.
 
 Evidence:
 
@@ -88,12 +88,12 @@ Evidence:
 
 ### Phase 3.6 Typed Web data layer
 
-- [ ] Add API DTO types, validated mappers, and UI domain types for real infrastructure data.
-- [ ] Add stable TanStack Query keys and hooks for dashboard summary, servers, server detail, and GPUs.
-- [ ] Add one SSE subscription that invalidates only affected infrastructure queries.
-- [ ] Add bounded polling as a reconnect/fallback path and pause unnecessary refresh work in hidden tabs.
-- [ ] Convert bytes and uptime to display units only in shared formatters.
-- [ ] Remove all server/GPU lookup imports from `mocks/data.ts` in the Phase 3 data path.
+- [x] Add API DTO types, validated mappers, and UI domain types for real infrastructure data.
+- [x] Add stable TanStack Query keys and hooks for dashboard summary, servers, server detail, and GPUs.
+- [x] Add one SSE subscription that invalidates only affected infrastructure queries.
+- [x] Add bounded polling as a reconnect/fallback path and pause unnecessary refresh work in hidden tabs.
+- [x] Convert bytes and uptime to display units only in shared formatters.
+- [x] Remove all server/GPU lookup imports from `mocks/data.ts` in the Phase 3 data path.
 
 Evidence:
 
@@ -101,12 +101,12 @@ Evidence:
 
 ### Phase 3.7 Replace infrastructure mock usage
 
-- [ ] Wire Dashboard server totals, GPU capacity, GPU resource table, and server status table to real queries.
-- [ ] Wire Servers search/filter/sort and Add Server registration to real APIs; show the one-time token only after creation.
-- [ ] Replace static server detail params/metadata and wire Overview, GPUs, Processes, refresh, and Agent token controls to real data.
-- [ ] Wire GPU table/card views and all filters to real cross-server data.
-- [ ] Refactor `GPUCard`, `GPUResourceTable`, `GPUProcessTable`, and breadcrumbs to receive server/GPU data rather than importing mocks.
-- [ ] Keep model/deployment/download fixtures clearly isolated until their roadmap phases while removing their dependency on mock server/GPU records.
+- [x] Wire Dashboard server totals, GPU capacity, GPU resource table, and server status table to real queries.
+- [x] Wire Servers search/filter/sort and Add Server registration to real APIs; show the one-time token only after creation.
+- [x] Replace static server detail params/metadata and wire Overview, GPUs, Processes, refresh, and Agent token controls to real data.
+- [x] Wire GPU table/card views and all filters to real cross-server data.
+- [x] Refactor `GPUCard`, `GPUResourceTable`, `GPUProcessTable`, and breadcrumbs to receive server/GPU data rather than importing mocks.
+- [x] Keep model/deployment/download fixtures clearly isolated until their roadmap phases while removing their dependency on mock server/GPU records.
 
 Evidence:
 
@@ -114,11 +114,11 @@ Evidence:
 
 ### Phase 3.8 User-visible states and browser verification
 
-- [ ] Add stable loading skeletons for all four real-data pages without layout shift.
-- [ ] Add actionable authentication, network, empty-inventory, CPU-only, and offline states.
-- [ ] Preserve filters and tabs across background refreshes without replacing the whole page.
-- [ ] Confirm table/card controls, dialogs, token copy, logout, and manual refresh remain keyboard accessible.
-- [ ] Verify no text overflow, overlap, blank state, or hydration error at desktop and mobile viewports.
+- [x] Add stable loading skeletons for all four real-data pages without layout shift.
+- [x] Add actionable authentication, network, empty-inventory, CPU-only, and offline states.
+- [x] Preserve filters and tabs across background refreshes without replacing the whole page.
+- [x] Confirm table/card controls, dialogs, token copy, logout, and manual refresh remain keyboard accessible.
+- [x] Verify no text overflow, overlap, blank state, or hydration error at desktop and mobile viewports.
 
 Evidence:
 
@@ -126,24 +126,42 @@ Evidence:
 
 ### Phase 3.9 Phase gate
 
-- [ ] Run Web, API, Agent lint/typecheck/tests and production builds.
-- [ ] Run PostgreSQL migrations and the five-service Compose smoke test.
-- [ ] Extend Compose smoke with three registered servers, including online, offline, and CPU-only cases.
-- [ ] Verify Agent heartbeat triggers SSE and refreshes Dashboard, Servers, Server Detail, and GPUs without a full reload.
-- [ ] Verify Viewer reads work while registration/token lifecycle remains Admin-only.
-- [ ] Run tracked secret and server/GPU mock-dependency scans.
-- [ ] Record exact evidence and unresolved host-specific items before opening Phase 4.
+- [x] Run Web, API, Agent lint/typecheck/tests and production builds.
+- [x] Run PostgreSQL migrations and the five-service Compose smoke test.
+- [x] Extend Compose smoke with three registered servers, including online, offline, and CPU-only cases.
+- [x] Verify Agent heartbeat triggers SSE and refreshes Dashboard, Servers, Server Detail, and GPUs without a full reload.
+- [x] Verify Viewer reads work while registration/token lifecycle remains Admin-only.
+- [x] Run tracked secret and server/GPU mock-dependency scans.
+- [x] Record exact evidence and unresolved host-specific items before opening Phase 4.
 
 ## Exit acceptance
 
-- [ ] Three simultaneous server records are aggregated consistently across Dashboard and inventory views.
-- [ ] Users can identify each server and GPU status, capacity, and freshness without inspecting raw payloads.
-- [ ] Offline and CPU-only servers degrade correctly and remain inspectable.
-- [ ] Dashboard, Servers, Server Detail, GPUs, and their shared components do not depend on server/GPU mock data.
-- [ ] SSE updates invalidate real queries, and polling recovers after an interrupted stream.
-- [ ] API tokens remain in HttpOnly server-side session handling and are absent from browser storage/client payloads.
-- [ ] Admin and Viewer authorization boundaries are enforced.
-- [ ] Phase 0-2 Web/API/Agent/Compose checks still pass.
-- [ ] No modification was made to `asus-2024` or `asus-4090`.
+- [x] Three simultaneous server records are aggregated consistently across Dashboard and inventory views.
+- [x] Users can identify each server and GPU status, capacity, and freshness without inspecting raw payloads.
+- [x] Offline and CPU-only servers degrade correctly and remain inspectable.
+- [x] Dashboard, Servers, Server Detail, GPUs, and their shared components do not depend on server/GPU mock data.
+- [x] SSE updates invalidate real queries, and polling recovers after an interrupted stream.
+- [x] API tokens remain in HttpOnly server-side session handling and are absent from browser storage/client payloads.
+- [x] Admin and Viewer authorization boundaries are enforced.
+- [x] Phase 0-2 Web/API/Agent/Compose checks still pass.
+- [x] No modification was made to `asus-2024` or `asus-4090`.
 
-Phase 4 must not start until every item above is checked and backed by current command, browser, or runtime output.
+## Final evidence
+
+```text
+npm run check                                      PASS
+Web tests / coverage                               8 passed / 80.1%
+API tests / coverage                               31 passed / 82%
+Agent tests / coverage                             28 passed / 82%
+npm run api:smoke                                  PASS
+docker compose config --quiet                      PASS
+docker compose --profile agent config --quiet      PASS
+GitHub Actions web/api/agent/compose               PASS (run 31207075696)
+Compose three-server/API/SSE/Web BFF smoke          PASS
+Tracked secret and infrastructure mock scans       PASS
+Browser login/live refresh/list/detail/logout       PASS
+```
+
+Runtime fixtures covered online four-GPU, offline one-GPU, CPU-only, and pending-registration servers. The browser check also covered available-only filtering, table/card views, one active GPU process, Agent token controls, and CPU-only/empty states without horizontal overflow. No host deployment was attempted in this phase, and neither backup server was modified.
+
+Phase 4 may start because every item above is checked and backed by current command, browser, or runtime output.

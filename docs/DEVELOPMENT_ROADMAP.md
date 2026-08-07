@@ -20,7 +20,8 @@
 | Phase 0 | 已完成 | 所有必需路由、统一 Mock Data、主题、交互、响应式与开源文档已完成 |
 | Phase 1 | 已完成 | Web、API 与五服务 Compose 门禁通过，PostgreSQL Migration、认证和 Worker 已有运行时证据 |
 | Phase 2 | 已完成 | Agent 注册、采集、心跳、白名单操作及 Linux Compose 运行时门禁全部通过 |
-| Phase 3 | 进行中 | 已细化真实 Server/GPU Read API、SSE、Web Session、TanStack Query 和页面替换任务 |
+| Phase 3 | 已完成 | 真实 Server/GPU API、SSE、Web Session 与多服务器页面已通过 Run 31207075696 |
+| Phase 4 | 进行中 | 正在执行受限模型目录配置、Agent 扫描、Ollama Discovery 与真实 Installed Models |
 
 Phase 0 分步结果：
 
@@ -404,6 +405,8 @@ System
 
 ## 8. Phase 4：Model Inventory
 
+代码级任务、技术决策、证据要求和阶段门详见 [`docs/phases/PHASE_4_MODEL_INVENTORY.md`](./phases/PHASE_4_MODEL_INVENTORY.md)。Phase 4 必须先完成该清单，再进入 Phase 5。
+
 ### 目标
 
 实现模型目录管理、模型文件扫描和已安装模型视图。
@@ -678,7 +681,7 @@ Phase 0 已按以下顺序执行完成：
 Phase 0.1 -> Phase 0.2 -> Phase 0.3 -> Phase 0.4 -> Phase 0.5 -> Phase 0.6 -> Phase 0.7 -> Phase 0.8
 ```
 
-维护者已于 2026-08-07 指示继续后续阶段。Phase 1 与 Phase 2 已于 2026-08-08 通过本地自动化与 GitHub Actions Compose 门禁；当前正在执行 Phase 3，并采用固定循环：细化代码级任务、实现、自动化校验、运行时验收、更新文档、通过阶段门，然后才细化下一个 Phase。
+维护者已于 2026-08-07 指示继续后续阶段。Phase 1 至 Phase 3 已于 2026-08-08 通过本地自动化、浏览器与 GitHub Actions Compose 门禁；当前正在执行 Phase 4，并采用固定循环：细化代码级任务、实现、自动化校验、运行时验收、更新文档、通过阶段门，然后才细化下一个 Phase。
 
 部署目标与主机修改边界记录在 [`docs/DEPLOYMENT_TARGETS.md`](./DEPLOYMENT_TARGETS.md)：Central stack 最终部署到 `xiao-pro6000`，模型可下载到 `xiao-pro6000` 或 `xiao-cpu`，`asus-2024` 与 `asus-4090` 保持备用且不执行修改操作。
 
@@ -710,4 +713,14 @@ API tests                                  PASS (26 tests, 82% coverage)
 Agent tests and package build              PASS (28 tests, 82% coverage)
 GitHub Actions web/api/agent/compose       PASS (run 31203551373)
 Compose Agent register/heartbeat/revoke    PASS
+```
+
+Phase 3 最终验证：
+
+```text
+npm run check                                      PASS
+Web / API / Agent tests                            PASS (8 / 31 / 28)
+GitHub Actions web/api/agent/compose               PASS (run 31207075696)
+Compose three-server/API/SSE/Web BFF smoke          PASS
+Browser live refresh/list/detail/logout             PASS
 ```
