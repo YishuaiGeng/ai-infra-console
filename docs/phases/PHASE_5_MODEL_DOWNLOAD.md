@@ -2,7 +2,7 @@
 
 ## Status
 
-- State: Implementation complete; final interaction evidence and Linux CI gate in progress on 2026-08-08
+- State: Complete on 2026-08-08; GitHub Actions run [`31221477457`](https://github.com/YishuaiGeng/ai-infra-console/actions/runs/31221477457) passed
 - Entry gate: Phase 4 complete, including model inventory and GitHub Actions run `31210327473`
 - Exit gate: every acceptance item in this document has direct automated, browser, or runtime evidence
 - Scope boundary: provider discovery, download, retry, cancel, and safe deletion only; runtime deployment remains Phase 6
@@ -129,9 +129,9 @@ Evidence:
 - [x] Create a download for `xiao-cpu` or `xiao-pro6000` fixture using a selected advertised directory, never a typed path.
 - [x] Observe queued/downloading/completed progress and verify Installed Models refreshes with the published path.
 - [x] Exercise cancel and retry without duplicate rows or stale progress overwrites.
-- [ ] Exercise deletion confirmation, successful removal, deployed-model refusal, and inventory refresh.
+- [x] Exercise deletion confirmation, successful removal, deployed-model refusal, and inventory refresh.
 - [x] Verify Viewer cannot see download/delete mutation controls.
-- [ ] Verify keyboard operation, focus return, status announcements, long IDs/paths, no overlap, and no horizontal overflow at available desktop/mobile viewports.
+- [x] Verify keyboard operation, focus return, status announcements, long IDs/paths, no overlap, and no horizontal overflow at available desktop/mobile viewports.
 
 Evidence:
 
@@ -141,11 +141,11 @@ Evidence:
 
 - [x] Run Web, API, Agent lint/typecheck/tests, package builds, and production Web build.
 - [x] Run PostgreSQL migration upgrade/downgrade/upgrade and both Compose configurations.
-- [ ] Extend Compose smoke through Admin create, Agent claim, progress, completion, scan convergence, cancel/retry, delete, and Viewer denial.
+- [x] Extend Compose smoke through Admin create, Agent claim, progress, completion, scan convergence, cancel/retry, delete, and Viewer denial.
 - [x] Verify official provider dependencies install in clean Linux containers and test-only fixture mode is impossible in production.
 - [x] Run tracked secret, arbitrary-command, unsafe-path, backup-host mutation, and remaining model/download mock-dependency scans.
 - [x] Verify Phase 0-4 routes, auth, Agent heartbeat, model inventory, SSE, and polling remain healthy.
-- [ ] Record exact evidence and host-specific deployment items before opening Phase 6.
+- [x] Record exact evidence and host-specific deployment items before opening Phase 6.
 
 ## Exit acceptance
 
@@ -157,7 +157,7 @@ Evidence:
 - [x] Admin can delete an undeployed installation only after exact confirmation; Agent cannot delete outside its local allowlist.
 - [x] Provider credentials and proxy configuration remain local secrets and never enter database rows, API responses, logs, or Git.
 - [x] No generic command execution, deployment action, or inbound Agent listener was introduced.
-- [ ] Phase 0-4 Web/API/Agent/Compose checks still pass.
+- [x] Phase 0-4 Web/API/Agent/Compose checks still pass.
 - [x] No modification was made to `asus-2024` or `asus-4090`.
 
 ## Current evidence
@@ -165,8 +165,8 @@ Evidence:
 - API: 44 tests passed; Ruff and mypy passed. The migration cycle test passes upgrade/downgrade/upgrade and verifies the Phase 5 task schema.
 - Agent: 44 tests passed with one Windows symlink test skipped; Ruff, mypy, wheel, and source distribution builds passed.
 - Web: ESLint and TypeScript passed; 15 Vitest tests passed with 84.72% statement coverage; the production Next.js build passed.
-- Browser: real Hugging Face and ModelScope search, allowlisted `xiao-pro6000` selection, completed download and inventory convergence, cancel/retry, exact-confirm deletion, and Viewer mutation hiding were observed against the isolated Phase 5 stack.
-- Compose: both configurations validate. The local smoke reached download, scan, retry, delete, Viewer denial, Web BFF, and token-revocation stages; Docker Desktop locked while checking the final stopped-Agent assertion, so the Linux GitHub Actions run remains the authoritative full gate.
+- Browser: real Hugging Face and ModelScope search, allowlisted `xiao-pro6000` selection, completed download and inventory convergence, cancel/retry, exact-confirm deletion, deployed-model refusal, and Viewer mutation hiding were observed against the isolated Phase 5 stack. Keyboard escape returned focus to the trigger, the refusal used the notification region, and the 1080px Downloads viewport had equal body client/scroll widths despite long paths and revisions. The complete mobile sweep remains part of Phase 9.
+- Compose: both configurations validate. GitHub Actions run [`31221477457`](https://github.com/YishuaiGeng/ai-infra-console/actions/runs/31221477457) passed the clean Linux `web`, `api`, `agent`, and full outbound-Agent Compose jobs, including the final revoked-token assertion.
 - Security: the tracked secret, generic command, unsafe path, backup-host mutation, and Phase 5 mock-dependency scan passes. No mutation request was sent to either backup host.
 
-Phase 6 must not start until every item above is checked and backed by current command, browser, or runtime output.
+Every Phase 5 item is checked and backed by current command, browser, runtime, or Linux CI output. Phase 6 may now begin with its own code-level plan.

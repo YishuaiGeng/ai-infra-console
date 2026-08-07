@@ -11,7 +11,7 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 ![AI Infra Console dashboard](./docs/assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> Server, GPU, installed-model, provider-search, and model-download views now use real Central API and outbound Agent data. Phase 5 implementation is complete and is awaiting its final Linux CI gate. Deployment lifecycle actions remain Phase 6 work.
+> Server, GPU, installed-model, provider-search, and model-download views now use real Central API and outbound Agent data. Phase 5 is complete. Deployment lifecycle actions are the current Phase 6 work.
 
 ## Phase 0 UI coverage (mock-backed)
 
@@ -61,7 +61,7 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 - Authenticated inventory, model detail, summary, and per-server directory APIs with SSE refresh.
 - Real Installed Models and Server Detail Models views with scan health and Admin-only default selection.
 
-## Phase 5 model download (final verification)
+## Phase 5 model download (complete)
 
 - Normalized Hugging Face and ModelScope search through official provider clients.
 - Admin-only download, cancel, retry, and exact-confirm deletion workflows with Viewer read access.
@@ -168,7 +168,7 @@ ai-infra-console/
 └── package.json             # npm workspace entry point
 ```
 
-Phase 4 passed its code-level, browser, and Linux Compose gates. Phase 5 code and local runtime checks are complete; its final Linux gate is tracked in [`docs/phases/PHASE_5_MODEL_DOWNLOAD.md`](./docs/phases/PHASE_5_MODEL_DOWNLOAD.md).
+Phase 5 passed its code-level, browser, and Linux Compose gates in [GitHub Actions run 31221477457](https://github.com/YishuaiGeng/ai-infra-console/actions/runs/31221477457). Phase 6 is tracked in the [development roadmap](./docs/DEVELOPMENT_ROADMAP.md) while its code-level plan is prepared.
 
 ## Roadmap
 
@@ -179,8 +179,8 @@ Phase 4 passed its code-level, browser, and Linux Compose gates. Phase 5 code an
 | 2 | Agent registration, heartbeat, hardware collection | Complete |
 | 3 | Real server and GPU integration | Complete |
 | 4 | Model inventory and directory scanning | Complete |
-| 5 | Hugging Face and ModelScope downloads | In progress |
-| 6 | Docker and vLLM deployment lifecycle | Planned |
+| 5 | Hugging Face and ModelScope downloads | Complete |
+| 6 | Docker and vLLM deployment lifecycle | Planning |
 | 7 | OpenAI-compatible API testing | Planned |
 | 8 | Historical metrics and notifications | Planned |
 | 9 | Accessibility and UI polish | Planned |
