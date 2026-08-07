@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, HttpUrl, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, HttpUrl, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +28,40 @@ class AgentSettings(BaseSettings):
     model_scan_max_installations: int = Field(default=2_000, ge=1, le=10_000)
     model_metadata_max_bytes: int = Field(default=1_048_576, ge=1_024, le=16_777_216)
     ollama_timeout_seconds: float = Field(default=2, ge=0.1, le=30)
+    enable_model_mutations: bool = False
+    model_task_progress_seconds: float = Field(default=2, ge=0.25, le=60)
+    model_download_max_workers: int = Field(default=4, ge=1, le=16)
+    hf_token: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AI_INFRA_AGENT_HF_TOKEN", "HF_TOKEN"),
+    )
+    hf_endpoint: HttpUrl = Field(
+        default=HttpUrl("https://huggingface.co"),
+        validation_alias=AliasChoices("AI_INFRA_AGENT_HF_ENDPOINT", "HF_ENDPOINT"),
+    )
+    modelscope_token: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AI_INFRA_AGENT_MODELSCOPE_TOKEN",
+            "MODELSCOPE_TOKEN",
+        ),
+    )
+    modelscope_endpoint: HttpUrl = Field(
+        default=HttpUrl("https://modelscope.cn"),
+        validation_alias=AliasChoices(
+            "AI_INFRA_AGENT_MODELSCOPE_ENDPOINT",
+            "MODELSCOPE_ENDPOINT",
+        ),
+    )
+    http_proxy: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AI_INFRA_AGENT_HTTP_PROXY", "HTTP_PROXY"),
+    )
+    https_proxy: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AI_INFRA_AGENT_HTTPS_PROXY", "HTTPS_PROXY"),
+    )
+    model_download_fixture_source: Path | None = None
 
     @field_validator("allowed_model_directories")
     @classmethod
@@ -54,6 +88,20 @@ class AgentSettings(BaseSettings):
             raise ValueError("AI_INFRA_AGENT_CENTRAL_URL must use HTTPS in production")
         if self.environment == "production" and not self.tls_verify:
             raise ValueError("TLS verification cannot be disabled in production")
+        if self.environment == "production" and (
+            self.hf_endpoint.scheme != "https" or self.modelscope_endpoint.scheme != "https"
+        ):
+            raise ValueError("model provider endpoints must use HTTPS in production")
+        if self.environment == "production" and self.model_download_fixture_source is not None:
+            raise ValueError("fixture model downloads cannot be enabled in production")
+        if self.enable_model_mutations and not self.allowed_model_directories:
+            raise ValueError("model mutations require at least one allowed model directory")
+        if self.model_download_fixture_source is not None:
+            if not self.model_download_fixture_source.is_absolute():
+                raise ValueError("fixture model source must be an absolute path")
+            self.model_download_fixture_source = self.model_download_fixture_source.resolve(
+                strict=False
+            )
         if self.default_model_directory is not None:
             if not self.default_model_directory.is_absolute():
                 raise ValueError("default model directory must be an absolute path")

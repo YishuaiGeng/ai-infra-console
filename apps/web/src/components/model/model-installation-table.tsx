@@ -20,10 +20,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ModelDetailsDialog } from "@/components/model/model-details-dialog";
+import { ModelDeleteDialog } from "@/components/model/model-delete-dialog";
 
 const helper = createColumnHelper<typeof dataTableFeatures, ModelInstallation>();
 
-const columns: DataTableColumn<ModelInstallation>[] = helper.columns([
+function modelColumns(
+  isAdmin: boolean,
+  mutableServerIds: readonly string[],
+): DataTableColumn<ModelInstallation>[] {
+  return helper.columns([
   helper.accessor("displayName", {
     id: "Model",
     header: "Model",
@@ -105,11 +110,30 @@ const columns: DataTableColumn<ModelInstallation>[] = helper.columns([
     id: "actions",
     header: "",
     enableHiding: false,
-    cell: ({ row }) => <ModelDetailsDialog modelId={row.original.modelId} />,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-1">
+        <ModelDetailsDialog modelId={row.original.modelId} />
+        {isAdmin &&
+          row.original.status === "discovered" &&
+          row.original.directoryId !== null &&
+          mutableServerIds.includes(row.original.server.id) && (
+          <ModelDeleteDialog model={row.original} />
+        )}
+      </div>
+    ),
   }),
-]);
+  ]);
+}
 
-export function ModelInstallationTable({ data }: { data: ModelInstallation[] }) {
+export function ModelInstallationTable({
+  data,
+  isAdmin = false,
+  mutableServerIds = [],
+}: {
+  data: ModelInstallation[];
+  isAdmin?: boolean;
+  mutableServerIds?: readonly string[];
+}) {
   const [source, setSource] = useState("all");
   const [format, setFormat] = useState("all");
   const [status, setStatus] = useState("all");
@@ -125,7 +149,7 @@ export function ModelInstallationTable({ data }: { data: ModelInstallation[] }) 
   return (
     <DataTable
       data={filtered}
-      columns={columns}
+      columns={modelColumns(isAdmin, mutableServerIds)}
       searchText={(item) =>
         `${item.name} ${item.displayName} ${item.sourceId} ${item.server.name} ${item.path}`
       }

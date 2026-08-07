@@ -2,7 +2,7 @@
 
 ## Status
 
-- State: In progress; code-level plan established on 2026-08-08
+- State: Implementation complete; final interaction evidence and Linux CI gate in progress on 2026-08-08
 - Entry gate: Phase 4 complete, including model inventory and GitHub Actions run `31210327473`
 - Exit gate: every acceptance item in this document has direct automated, browser, or runtime evidence
 - Scope boundary: provider discovery, download, retry, cancel, and safe deletion only; runtime deployment remains Phase 6
@@ -29,12 +29,12 @@
 
 ### Phase 5.1 Persistence and task state machine
 
-- [ ] Add an Alembic migration for download revision, directory reference, requester, attempt, lease, cancellation, progress freshness, safe error code, and timestamps.
-- [ ] Add a dedicated model-delete task table rather than overloading download rows or creating a generic command table.
-- [ ] Add database constraints/indexes for server/status ordering, non-negative byte counters, bounded attempts, and one active destination.
-- [ ] Implement pure transition helpers for claim, progress, cancel, complete, fail, retry, lease expiry, and stale claimant rejection.
-- [ ] Store lease token digests only and compare submitted lease credentials without logging them.
-- [ ] Keep provider errors sanitized into bounded code/message fields and retain request/audit IDs separately.
+- [x] Add an Alembic migration for download revision, directory reference, requester, attempt, lease, cancellation, progress freshness, safe error code, and timestamps.
+- [x] Add a dedicated model-delete task table rather than overloading download rows or creating a generic command table.
+- [x] Add database constraints/indexes for server/status ordering, non-negative byte counters, bounded attempts, and one active destination.
+- [x] Implement pure transition helpers for claim, progress, cancel, complete, fail, retry, lease expiry, and stale claimant rejection.
+- [x] Store lease token digests only and compare submitted lease credentials without logging them.
+- [x] Keep provider errors sanitized into bounded code/message fields and retain request/audit IDs separately.
 
 Evidence:
 
@@ -42,12 +42,12 @@ Evidence:
 
 ### Phase 5.2 Provider catalog adapters
 
-- [ ] Add a normalized catalog DTO for provider, source ID, display name, task/type, tags, downloads, likes, license, gated/private flags, revision, size, architecture, and last modified time.
-- [ ] Add a Hugging Face adapter using `HfApi.list_models()` and `model_info()` with bounded result count, timeout, endpoint, and token configuration.
-- [ ] Add a ModelScope adapter using the official `modelscope-hub` client with equivalent normalized output.
-- [ ] Validate provider names and repository IDs; reject URLs, traversal segments, control characters, and unbounded query strings.
-- [ ] Execute synchronous provider clients off the async event loop and map timeout/auth/rate-limit/upstream failures to stable API errors.
-- [ ] Add a short bounded cache that varies by provider/query and never stores tokens or raw upstream responses.
+- [x] Add a normalized catalog DTO for provider, source ID, display name, task/type, tags, downloads, likes, license, gated/private flags, revision, size, architecture, and last modified time.
+- [x] Add a Hugging Face adapter using `HfApi.list_models()` and `model_info()` with bounded result count, timeout, endpoint, and token configuration.
+- [x] Add a ModelScope adapter using the official `modelscope-hub` client with equivalent normalized output.
+- [x] Validate provider names and repository IDs; reject URLs, traversal segments, control characters, and unbounded query strings.
+- [x] Execute synchronous provider clients off the async event loop and map timeout/auth/rate-limit/upstream failures to stable API errors.
+- [x] Add a short bounded cache that varies by provider/query and never stores tokens or raw upstream responses.
 
 Evidence:
 
@@ -55,14 +55,14 @@ Evidence:
 
 ### Phase 5.3 Authenticated download and deletion APIs
 
-- [ ] Add authenticated catalog search/detail APIs for Admin and Viewer; keep all mutations Admin-only.
-- [ ] Add `POST /api/v1/downloads`, `GET /api/v1/downloads`, and `GET /api/v1/downloads/{id}` with deterministic filtering and ordering.
-- [ ] Add Admin-only cancel and retry endpoints with idempotent terminal-state behavior.
-- [ ] Add Admin-only installation deletion request/status endpoints with exact source-ID confirmation.
-- [ ] Require server online state, Central mutable-server allowlist membership, an active Agent, and an available Agent-advertised target directory before queueing.
-- [ ] Reject downloads to arbitrary text paths, backup hosts, stale/unavailable roots, duplicate active destinations, and already installed identical revisions unless force behavior is explicitly added later.
-- [ ] Reject deletion while a `Deployment` references the model file and never cascade a deployment through deletion.
-- [ ] Record audit entries and publish `model.download.updated` or `model.inventory.updated` only after commit.
+- [x] Add authenticated catalog search/detail APIs for Admin and Viewer; keep all mutations Admin-only.
+- [x] Add `POST /api/v1/downloads`, `GET /api/v1/downloads`, and `GET /api/v1/downloads/{id}` with deterministic filtering and ordering.
+- [x] Add Admin-only cancel and retry endpoints with idempotent terminal-state behavior.
+- [x] Add Admin-only installation deletion request/status endpoints with exact source-ID confirmation.
+- [x] Require server online state, Central mutable-server allowlist membership, an active Agent, and an available Agent-advertised target directory before queueing.
+- [x] Reject downloads to arbitrary text paths, backup hosts, stale/unavailable roots, duplicate active destinations, and already installed identical revisions unless force behavior is explicitly added later.
+- [x] Reject deletion while a `Deployment` references the model file and never cascade a deployment through deletion.
+- [x] Record audit entries and publish `model.download.updated` or `model.inventory.updated` only after commit.
 
 Evidence:
 
@@ -70,12 +70,12 @@ Evidence:
 
 ### Phase 5.4 Outbound Agent task protocol
 
-- [ ] Add a server-scoped Agent claim endpoint returning a discriminated download/delete union with no free-form executable field.
-- [ ] Add lease-authenticated progress and terminal-report endpoints that only accept tasks owned by the authenticated Agent server.
-- [ ] Return cancellation state from progress reports so a downloading Agent can stop cooperatively.
-- [ ] Extend `CentralClient` with typed claim/report methods and stable handling for empty queues, auth failure, lease conflict, and transient Central failure.
-- [ ] Extend `AgentRunner` to keep heartbeats flowing while supervising at most one mutation task.
-- [ ] Recover expired tasks after Agent restart and refuse late progress from the previous lease holder.
+- [x] Add a server-scoped Agent claim endpoint returning a discriminated download/delete union with no free-form executable field.
+- [x] Add lease-authenticated progress and terminal-report endpoints that only accept tasks owned by the authenticated Agent server.
+- [x] Return cancellation state from progress reports so a downloading Agent can stop cooperatively.
+- [x] Extend `CentralClient` with typed claim/report methods and stable handling for empty queues, auth failure, lease conflict, and transient Central failure.
+- [x] Extend `AgentRunner` to keep heartbeats flowing while supervising at most one mutation task.
+- [x] Recover expired tasks after Agent restart and refuse late progress from the previous lease holder.
 
 Evidence:
 
@@ -83,14 +83,14 @@ Evidence:
 
 ### Phase 5.5 Safe Agent download execution
 
-- [ ] Add Agent settings for the mutation opt-in, task polling/report intervals, lease behavior, provider tokens/endpoints, proxy support, worker limits, and test-only fixture provider.
-- [ ] Reject mutation enablement in production when no allowed model directories exist or transport is not verified HTTPS.
-- [ ] Implement repository-ID normalization and a deterministic provider/owner/repository relative layout.
-- [ ] Resolve the advertised root against the Agent allowlist, refuse root replacement, symlink parents, non-directory roots, existing unrelated targets, and containment escapes.
-- [ ] Implement Hugging Face snapshot downloads and ModelScope repository downloads through official clients with local credentials and bounded workers.
-- [ ] Stage each attempt under the selected root, emit coalesced progress, support cooperative cancel, preserve resumable provider metadata, and atomically publish only after success.
-- [ ] Clean task-owned incomplete paths after cancellation/fatal failure without touching provider caches or unrelated files.
-- [ ] Invalidate the model-scan cache after publish so the next heartbeat reports the new installation immediately.
+- [x] Add Agent settings for the mutation opt-in, task polling/report intervals, lease behavior, provider tokens/endpoints, proxy support, worker limits, and test-only fixture provider.
+- [x] Reject mutation enablement in production when no allowed model directories exist or transport is not verified HTTPS.
+- [x] Implement repository-ID normalization and a deterministic provider/owner/repository relative layout.
+- [x] Resolve the advertised root against the Agent allowlist, refuse root replacement, symlink parents, non-directory roots, existing unrelated targets, and containment escapes.
+- [x] Implement Hugging Face snapshot downloads and ModelScope repository downloads through official clients with local credentials and bounded workers.
+- [x] Stage each attempt under the selected root, emit coalesced progress, support cooperative cancel, preserve resumable provider metadata, and atomically publish only after success.
+- [x] Clean task-owned incomplete paths after cancellation/fatal failure without touching provider caches or unrelated files.
+- [x] Invalidate the model-scan cache after publish so the next heartbeat reports the new installation immediately.
 
 Evidence:
 
@@ -98,11 +98,11 @@ Evidence:
 
 ### Phase 5.6 Safe Agent deletion
 
-- [ ] Accept only a typed deletion task containing the inventory row identity, advertised root, expected source identity, and physical path.
-- [ ] Re-resolve the root and target locally; require the target to be strictly below one exact allowed directory.
-- [ ] Refuse allowlist roots themselves, symlinks, special files, missing identity evidence, paths outside the root, and targets not owned by the selected inventory row.
-- [ ] Remove only the selected file or directory tree without crossing filesystem boundaries.
-- [ ] Make already-absent targets idempotent, report a bounded outcome, and invalidate the scan cache after success.
+- [x] Accept only a typed deletion task containing the inventory row identity, advertised root, expected source identity, and physical path.
+- [x] Re-resolve the root and target locally; require the target to be strictly below one exact allowed directory.
+- [x] Refuse allowlist roots themselves, symlinks, special files, missing identity evidence, paths outside the root, and targets not owned by the selected inventory row.
+- [x] Remove only the selected file or directory tree without crossing filesystem boundaries.
+- [x] Make already-absent targets idempotent, report a bounded outcome, and invalidate the scan cache after success.
 
 Evidence:
 
@@ -110,14 +110,14 @@ Evidence:
 
 ### Phase 5.7 Web data layer and workflows
 
-- [ ] Add same-origin BFF handlers for catalog, downloads, cancel/retry, and deletion with existing HttpOnly session behavior.
-- [ ] Add Zod-validated catalog/task DTO mappers, query keys/hooks, SSE invalidation, and bounded polling fallback.
-- [ ] Replace Model Library mock definitions with debounced provider search, provider/type filters, loading, empty, upstream-error, gated, and private states.
-- [ ] Replace Download Dialog's free-text path with real online mutable servers and their available advertised directories.
-- [ ] Submit real download tasks and surface validation, authorization, duplicate, offline, and provider errors inline.
-- [ ] Replace Downloads mock rows/actions with real task progress, bytes, speed, attempts, timestamps, errors, Cancel, and Retry.
-- [ ] Add Admin-only two-step deletion from Installed Models with exact model identity confirmation and deployed-model refusal feedback.
-- [ ] Keep Viewer catalog/download reads visible while hiding every mutation control.
+- [x] Add same-origin BFF handlers for catalog, downloads, cancel/retry, and deletion with existing HttpOnly session behavior.
+- [x] Add Zod-validated catalog/task DTO mappers, query keys/hooks, SSE invalidation, and bounded polling fallback.
+- [x] Replace Model Library mock definitions with debounced provider search, provider/type filters, loading, empty, upstream-error, gated, and private states.
+- [x] Replace Download Dialog's free-text path with real online mutable servers and their available advertised directories.
+- [x] Submit real download tasks and surface validation, authorization, duplicate, offline, and provider errors inline.
+- [x] Replace Downloads mock rows/actions with real task progress, bytes, speed, attempts, timestamps, errors, Cancel, and Retry.
+- [x] Add Admin-only two-step deletion from Installed Models with exact model identity confirmation and deployed-model refusal feedback.
+- [x] Keep Viewer catalog/download reads visible while hiding every mutation control.
 
 Evidence:
 
@@ -125,12 +125,12 @@ Evidence:
 
 ### Phase 5.8 Browser and interaction verification
 
-- [ ] Search `Qwen/Qwen3-8B` through Hugging Face and ModelScope fixtures and verify provider metadata/error states.
-- [ ] Create a download for `xiao-cpu` or `xiao-pro6000` fixture using a selected advertised directory, never a typed path.
-- [ ] Observe queued/downloading/completed progress and verify Installed Models refreshes with the published path.
-- [ ] Exercise cancel and retry without duplicate rows or stale progress overwrites.
+- [x] Search `Qwen/Qwen3-8B` through Hugging Face and ModelScope fixtures and verify provider metadata/error states.
+- [x] Create a download for `xiao-cpu` or `xiao-pro6000` fixture using a selected advertised directory, never a typed path.
+- [x] Observe queued/downloading/completed progress and verify Installed Models refreshes with the published path.
+- [x] Exercise cancel and retry without duplicate rows or stale progress overwrites.
 - [ ] Exercise deletion confirmation, successful removal, deployed-model refusal, and inventory refresh.
-- [ ] Verify Viewer cannot see download/delete mutation controls.
+- [x] Verify Viewer cannot see download/delete mutation controls.
 - [ ] Verify keyboard operation, focus return, status announcements, long IDs/paths, no overlap, and no horizontal overflow at available desktop/mobile viewports.
 
 Evidence:
@@ -139,25 +139,34 @@ Evidence:
 
 ### Phase 5.9 Phase gate
 
-- [ ] Run Web, API, Agent lint/typecheck/tests, package builds, and production Web build.
-- [ ] Run PostgreSQL migration upgrade/downgrade/upgrade and both Compose configurations.
+- [x] Run Web, API, Agent lint/typecheck/tests, package builds, and production Web build.
+- [x] Run PostgreSQL migration upgrade/downgrade/upgrade and both Compose configurations.
 - [ ] Extend Compose smoke through Admin create, Agent claim, progress, completion, scan convergence, cancel/retry, delete, and Viewer denial.
-- [ ] Verify official provider dependencies install in clean Linux containers and test-only fixture mode is impossible in production.
-- [ ] Run tracked secret, arbitrary-command, unsafe-path, backup-host mutation, and remaining model/download mock-dependency scans.
-- [ ] Verify Phase 0-4 routes, auth, Agent heartbeat, model inventory, SSE, and polling remain healthy.
+- [x] Verify official provider dependencies install in clean Linux containers and test-only fixture mode is impossible in production.
+- [x] Run tracked secret, arbitrary-command, unsafe-path, backup-host mutation, and remaining model/download mock-dependency scans.
+- [x] Verify Phase 0-4 routes, auth, Agent heartbeat, model inventory, SSE, and polling remain healthy.
 - [ ] Record exact evidence and host-specific deployment items before opening Phase 6.
 
 ## Exit acceptance
 
-- [ ] Searching `Qwen/Qwen3-8B` returns normalized Hugging Face and ModelScope results or a clear provider-specific state.
-- [ ] An Admin can select an allowed directory on `xiao-cpu` or `xiao-pro6000` and create a real outbound Agent download task.
-- [ ] Downloads exposes queued/downloading/cancelling/completed/failed/cancelled state, bytes, total, speed, attempt, and safe error details.
-- [ ] Cancel and retry are idempotent, lease-safe, and do not publish partial models.
-- [ ] Completed downloads appear in Installed Models after an immediate inventory refresh.
-- [ ] Admin can delete an undeployed installation only after exact confirmation; Agent cannot delete outside its local allowlist.
-- [ ] Provider credentials and proxy configuration remain local secrets and never enter database rows, API responses, logs, or Git.
-- [ ] No generic command execution, deployment action, or inbound Agent listener was introduced.
+- [x] Searching `Qwen/Qwen3-8B` returns normalized Hugging Face and ModelScope results or a clear provider-specific state.
+- [x] An Admin can select an allowed directory on `xiao-cpu` or `xiao-pro6000` and create a real outbound Agent download task.
+- [x] Downloads exposes queued/downloading/cancelling/completed/failed/cancelled state, bytes, total, speed, attempt, and safe error details.
+- [x] Cancel and retry are idempotent, lease-safe, and do not publish partial models.
+- [x] Completed downloads appear in Installed Models after an immediate inventory refresh.
+- [x] Admin can delete an undeployed installation only after exact confirmation; Agent cannot delete outside its local allowlist.
+- [x] Provider credentials and proxy configuration remain local secrets and never enter database rows, API responses, logs, or Git.
+- [x] No generic command execution, deployment action, or inbound Agent listener was introduced.
 - [ ] Phase 0-4 Web/API/Agent/Compose checks still pass.
-- [ ] No modification was made to `asus-2024` or `asus-4090`.
+- [x] No modification was made to `asus-2024` or `asus-4090`.
+
+## Current evidence
+
+- API: 44 tests passed; Ruff and mypy passed. The migration cycle test passes upgrade/downgrade/upgrade and verifies the Phase 5 task schema.
+- Agent: 44 tests passed with one Windows symlink test skipped; Ruff, mypy, wheel, and source distribution builds passed.
+- Web: ESLint and TypeScript passed; 15 Vitest tests passed with 84.72% statement coverage; the production Next.js build passed.
+- Browser: real Hugging Face and ModelScope search, allowlisted `xiao-pro6000` selection, completed download and inventory convergence, cancel/retry, exact-confirm deletion, and Viewer mutation hiding were observed against the isolated Phase 5 stack.
+- Compose: both configurations validate. The local smoke reached download, scan, retry, delete, Viewer denial, Web BFF, and token-revocation stages; Docker Desktop locked while checking the final stopped-Agent assertion, so the Linux GitHub Actions run remains the authoritative full gate.
+- Security: the tracked secret, generic command, unsafe path, backup-host mutation, and Phase 5 mock-dependency scan passes. No mutation request was sent to either backup host.
 
 Phase 6 must not start until every item above is checked and backed by current command, browser, or runtime output.

@@ -94,9 +94,7 @@ async def test_persistence_enforces_roots_and_reconciles_status(app: FastAPI) ->
         assert first.changed is True
         assert first.installation_count == 2
         paths = set(
-            await session.scalars(
-                select(ModelFile.path).where(ModelFile.server_id == server.id)
-            )
+            await session.scalars(select(ModelFile.path).where(ModelFile.server_id == server.id))
         )
         assert paths == {"/data/models/Qwen3-8B", "ollama://qwen3:8b"}
 
@@ -111,9 +109,7 @@ async def test_persistence_enforces_roots_and_reconciles_status(app: FastAPI) ->
         await session.commit()
         assert failed.changed is True
         assert set(
-            await session.scalars(
-                select(ModelFile.status).where(ModelFile.server_id == server.id)
-            )
+            await session.scalars(select(ModelFile.status).where(ModelFile.server_id == server.id))
         ) == {"stale"}
 
         recovered = await persist_model_inventory(
@@ -124,9 +120,7 @@ async def test_persistence_enforces_roots_and_reconciles_status(app: FastAPI) ->
         await session.commit()
         assert recovered.changed is True
         assert set(
-            await session.scalars(
-                select(ModelFile.status).where(ModelFile.server_id == server.id)
-            )
+            await session.scalars(select(ModelFile.status).where(ModelFile.server_id == server.id))
         ) == {"missing"}
 
 

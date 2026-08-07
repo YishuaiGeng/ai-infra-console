@@ -6,6 +6,8 @@ import {
   useModelInstallations,
   useModelInventorySummary,
 } from "@/hooks/use-model-inventory";
+import { useSession } from "@/hooks/use-infrastructure";
+import { useDownloadTargets } from "@/hooks/use-downloads";
 import { formatBytes } from "@/lib/format";
 import { ModelInstallationTable } from "@/components/model/model-installation-table";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -18,6 +20,8 @@ import { SectionPanel } from "@/components/shared/section-panel";
 export function InstalledModelsPage() {
   const modelsQuery = useModelInstallations();
   const summaryQuery = useModelInventorySummary();
+  const sessionQuery = useSession();
+  const targetsQuery = useDownloadTargets();
 
   return (
     <PageContainer>
@@ -51,7 +55,11 @@ export function InstalledModelsPage() {
           title="Model file inventory"
           description={`${summaryQuery.data.model_count} logical models / ${summaryQuery.data.installation_count} locations / ${formatBytes(summaryQuery.data.total_size)}`}
         >
-          <ModelInstallationTable data={modelsQuery.data} />
+          <ModelInstallationTable
+            data={modelsQuery.data}
+            isAdmin={sessionQuery.data?.role === "admin"}
+            mutableServerIds={(targetsQuery.data ?? []).map((target) => target.server.id)}
+          />
         </SectionPanel>
       )}
     </PageContainer>

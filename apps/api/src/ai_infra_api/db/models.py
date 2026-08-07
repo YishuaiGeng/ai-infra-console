@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     Float,
@@ -165,9 +166,7 @@ class GPUProcess(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "gpu_processes"
     __table_args__ = (UniqueConstraint("gpu_id", "pid"),)
 
-    gpu_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("gpus.id", ondelete="CASCADE"), index=True
-    )
+    gpu_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("gpus.id", ondelete="CASCADE"), index=True)
     pid: Mapped[int] = mapped_column(Integer)
     username: Mapped[str | None] = mapped_column(String(128))
     command: Mapped[str | None] = mapped_column(String(512))
@@ -217,6 +216,15 @@ class ModelFile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class ModelDownloadTask(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "model_download_tasks"
+    __table_args__ = (
+        CheckConstraint("downloaded_size >= 0", name="downloaded_size_non_negative"),
+        CheckConstraint(
+            "total_size IS NULL OR total_size >= 0",
+            name="total_size_non_negative",
+        ),
+        CheckConstraint("attempt_count >= 0", name="attempt_count_non_negative"),
+        Index("ix_model_download_tasks_server_status_created", "server_id", "status", "created_at"),
+    )
 
     model_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("models.id", ondelete="SET NULL"), index=True
@@ -224,13 +232,58 @@ class ModelDownloadTask(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     server_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("servers.id", ondelete="CASCADE"), index=True
     )
+    directory_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("server_model_directories.id", ondelete="SET NULL"), index=True
+    )
+    requested_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     source: Mapped[str] = mapped_column(String(32))
     source_id: Mapped[str] = mapped_column(String(255))
+    revision: Mapped[str] = mapped_column(String(128), default="main")
     target_path: Mapped[str] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
     downloaded_size: Mapped[int] = mapped_column(BigInteger, default=0)
     total_size: Mapped[int | None] = mapped_column(BigInteger)
     speed_bytes_per_second: Mapped[int | None] = mapped_column(BigInteger)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    lease_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    last_progress_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancel_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    error_message: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ModelDeleteTask(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "model_delete_tasks"
+    __table_args__ = (
+        CheckConstraint("attempt_count >= 0", name="attempt_count_non_negative"),
+        Index("ix_model_delete_tasks_server_status_created", "server_id", "status", "created_at"),
+    )
+
+    model_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("model_files.id", ondelete="SET NULL"), index=True
+    )
+    server_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("servers.id", ondelete="CASCADE"), index=True
+    )
+    directory_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("server_model_directories.id", ondelete="SET NULL"), index=True
+    )
+    requested_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    source: Mapped[str] = mapped_column(String(32))
+    source_id: Mapped[str] = mapped_column(String(255))
+    target_path: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    lease_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    error_code: Mapped[str | None] = mapped_column(String(64))
     error_message: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

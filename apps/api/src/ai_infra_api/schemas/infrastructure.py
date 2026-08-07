@@ -125,6 +125,11 @@ class InfrastructureSummaryResponse(BaseModel):
 
 class InfrastructureEvent(BaseModel):
     id: str
-    kind: Literal["server.updated", "server.offline", "model.inventory.updated"]
+    kind: Literal[
+        "server.updated",
+        "server.offline",
+        "model.inventory.updated",
+        "model.download.updated",
+    ]
     server_id: uuid.UUID
     occurred_at: datetime

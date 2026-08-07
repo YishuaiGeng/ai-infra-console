@@ -110,9 +110,7 @@ async def _load_rows(
         gpu_query = gpu_query.where(GPU.server_id == server_id)
 
     servers = list(await session.scalars(server_query))
-    metrics = {
-        item.server_id: item for item in await session.scalars(metric_query)
-    }
+    metrics = {item.server_id: item for item in await session.scalars(metric_query)}
     gpus = list(await session.scalars(gpu_query))
     gpu_ids = [gpu.id for gpu in gpus]
     if not gpu_ids:
@@ -270,9 +268,7 @@ async def get_server_detail(
     offline_seconds: int,
 ) -> ServerDetailResponse | None:
     await mark_stale_servers_offline(session, threshold_seconds=offline_seconds)
-    servers, metrics, gpus, gpu_metrics, processes = await _load_rows(
-        session, server_id=server_id
-    )
+    servers, metrics, gpus, gpu_metrics, processes = await _load_rows(session, server_id=server_id)
     if not servers:
         return None
     server = servers[0]
@@ -281,9 +277,7 @@ async def get_server_detail(
         for gpu in gpus
     ]
     process_responses = [
-        _process_response(gpu, process)
-        for gpu in gpus
-        for process in processes.get(gpu.id, [])
+        _process_response(gpu, process) for gpu in gpus for process in processes.get(gpu.id, [])
     ]
     model_counts = await _model_counts(session)
     model_installations = await list_model_installations(session, server_id=server.id)

@@ -115,9 +115,7 @@ def test_ollama_discovery_maps_and_deduplicates_tags() -> None:
             {"name": "qwen3:8b", "digest": "sha256:second", "size": 9_000},
         ]
     }
-    transport = httpx.MockTransport(
-        lambda _request: httpx.Response(200, json=payload)
-    )
+    transport = httpx.MockTransport(lambda _request: httpx.Response(200, json=payload))
 
     status, installations = discover_ollama(timeout_seconds=1, transport=transport)
 

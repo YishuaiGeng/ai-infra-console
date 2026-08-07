@@ -282,9 +282,7 @@ async def test_same_logical_model_has_distinct_server_locations(
         await client.post(
             "/api/v1/agent/register",
             json=second_payload,
-            headers={
-                "authorization": f"Bearer {registration.json()['registration_token']}"
-            },
+            headers={"authorization": f"Bearer {registration.json()['registration_token']}"},
         )
     ).status_code == 200
 

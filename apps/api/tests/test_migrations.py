@@ -1,8 +1,10 @@
 import sqlite3
 from pathlib import Path
 
+import pytest
 from alembic.config import Config
 
+from ai_infra_api.core.config import get_settings
 from alembic import command
 
 REQUIRED_TABLES = {
@@ -17,6 +19,7 @@ REQUIRED_TABLES = {
     "models",
     "model_files",
     "model_download_tasks",
+    "model_delete_tasks",
     "deployments",
     "deployment_gpus",
     "api_endpoints",
@@ -54,9 +57,34 @@ def test_initial_migration_upgrade_downgrade_and_reupgrade(tmp_path: Path) -> No
     assert {"directory_id", "file_count", "last_seen_at"} <= column_names(
         database_path, "model_files"
     )
+    assert {
+        "directory_id",
+        "revision",
+        "attempt_count",
+        "lease_token_hash",
+        "error_code",
+    } <= column_names(database_path, "model_download_tasks")
 
     command.downgrade(config, "base")
     assert not (REQUIRED_TABLES & table_names(database_path))
 
     command.upgrade(config, "head")
+    assert REQUIRED_TABLES <= table_names(database_path)
+
+
+def test_environment_database_url_accepts_percent_encoding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api_root = Path(__file__).resolve().parents[1]
+    database_path = tmp_path / "migration%21.db"
+    monkeypatch.setenv(
+        "AI_INFRA_DATABASE_URL",
+        f"sqlite+aiosqlite:///{database_path.as_posix()}",
+    )
+    get_settings.cache_clear()
+    try:
+        command.upgrade(Config(api_root / "alembic.ini"), "head")
+    finally:
+        get_settings.cache_clear()
+
     assert REQUIRED_TABLES <= table_names(database_path)

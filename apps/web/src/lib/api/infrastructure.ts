@@ -131,7 +131,12 @@ export const registrationResponseSchema = z.object({
 
 export const infrastructureEventSchema = z.object({
   id: z.string(),
-  kind: z.enum(["server.updated", "server.offline", "model.inventory.updated"]),
+  kind: z.enum([
+    "server.updated",
+    "server.offline",
+    "model.inventory.updated",
+    "model.download.updated",
+  ]),
   server_id: z.string(),
   occurred_at: z.string(),
 });
@@ -160,9 +165,10 @@ export function infrastructureEventQueryKeys(
     infrastructureQueryKeys.gpus,
     infrastructureQueryKeys.server(serverId),
   ];
-  return kind === "model.inventory.updated"
-    ? [...keys, ["models"], ["models", "summary"]]
-    : keys;
+  if (kind === "model.inventory.updated") {
+    return [...keys, ["models"], ["models", "summary"], ["downloads"]];
+  }
+  return kind === "model.download.updated" ? [...keys, ["downloads"]] : keys;
 }
 
 const bytesPerGiB = 1024 ** 3;

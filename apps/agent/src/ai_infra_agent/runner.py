@@ -18,6 +18,14 @@ class Reporter(Protocol):
     async def heartbeat(self, snapshot: AgentSnapshot) -> AgentReportResponse: ...
 
 
+class TaskSupervisor(Protocol):
+    async def tick(self) -> None: ...
+
+    def stop(self) -> None: ...
+
+    async def wait(self) -> None: ...
+
+
 async def wait_for_stop(delay: float, stop_event: asyncio.Event) -> None:
     try:
         await asyncio.wait_for(stop_event.wait(), timeout=delay)
@@ -35,6 +43,7 @@ class AgentRunner:
         stop_event: asyncio.Event | None = None,
         waiter: Callable[[float, asyncio.Event], Awaitable[None]] = wait_for_stop,
         random_value: Callable[[], float] = random.random,
+        task_supervisor: TaskSupervisor | None = None,
     ) -> None:
         self._reporter = reporter
         self._collector = collector
@@ -42,9 +51,12 @@ class AgentRunner:
         self._stop_event = stop_event or asyncio.Event()
         self._waiter = waiter
         self._random_value = random_value
+        self._task_supervisor = task_supervisor
 
     def stop(self) -> None:
         self._stop_event.set()
+        if self._task_supervisor is not None:
+            self._task_supervisor.stop()
 
     async def run(self) -> None:
         registered = False
@@ -57,6 +69,8 @@ class AgentRunner:
                 else:
                     await self._reporter.register(snapshot)
                     registered = True
+                if self._task_supervisor is not None:
+                    await self._task_supervisor.tick()
                 failures = 0
                 delay = self._heartbeat_seconds
             except AgentAuthenticationError:
@@ -79,3 +93,6 @@ class AgentRunner:
                     exc_info=exc,
                 )
             await self._waiter(delay, self._stop_event)
+        if self._task_supervisor is not None:
+            self._task_supervisor.stop()
+            await self._task_supervisor.wait()

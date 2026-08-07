@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, HttpUrl, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -30,6 +30,30 @@ class Settings(BaseSettings):
     jwt_audience: str = "ai-infra-console-web"
     access_token_minutes: int = 30
     agent_offline_seconds: int = Field(default=30, ge=10, le=86400)
+    mutable_server_names: tuple[str, ...] = ()
+    model_task_lease_seconds: int = Field(default=60, ge=15, le=3_600)
+    model_catalog_timeout_seconds: float = Field(default=10, ge=1, le=60)
+    model_catalog_cache_seconds: int = Field(default=60, ge=0, le=3_600)
+    model_catalog_max_results: int = Field(default=20, ge=1, le=100)
+    hf_token: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AI_INFRA_HF_TOKEN", "HF_TOKEN"),
+    )
+    hf_endpoint: HttpUrl = Field(
+        default=HttpUrl("https://huggingface.co"),
+        validation_alias=AliasChoices("AI_INFRA_HF_ENDPOINT", "HF_ENDPOINT"),
+    )
+    modelscope_token: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AI_INFRA_MODELSCOPE_TOKEN", "MODELSCOPE_TOKEN"),
+    )
+    modelscope_endpoint: HttpUrl = Field(
+        default=HttpUrl("https://modelscope.cn"),
+        validation_alias=AliasChoices(
+            "AI_INFRA_MODELSCOPE_ENDPOINT",
+            "MODELSCOPE_ENDPOINT",
+        ),
+    )
 
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: SecretStr | None = None
@@ -39,6 +63,14 @@ class Settings(BaseSettings):
     @classmethod
     def empty_bootstrap_password_is_unset(cls, value: object) -> object:
         return None if value == "" else value
+
+    @field_validator("mutable_server_names")
+    @classmethod
+    def normalize_mutable_server_names(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        normalized = tuple(dict.fromkeys(item.strip() for item in value if item.strip()))
+        if any(len(item) > 128 for item in normalized):
+            raise ValueError("mutable server names must be at most 128 characters")
+        return normalized
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":
@@ -51,6 +83,8 @@ class Settings(BaseSettings):
         database_password = make_url(self.database_url).password or ""
         if len(database_password) < 12 or database_password in {"ai_infra", "ai_infra_dev"}:
             raise ValueError("AI_INFRA_DATABASE_URL must use a strong password in production")
+        if self.hf_endpoint.scheme != "https" or self.modelscope_endpoint.scheme != "https":
+            raise ValueError("model provider endpoints must use HTTPS in production")
         return self
 
     @property

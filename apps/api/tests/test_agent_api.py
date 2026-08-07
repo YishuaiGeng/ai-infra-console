@@ -213,9 +213,7 @@ async def test_rotation_and_revocation_invalidate_old_tokens(
     client: AsyncClient, app: FastAPI
 ) -> None:
     server_id, first_token, admin_headers = await create_registration(client, app)
-    rotated = await client.post(
-        f"/api/v1/servers/{server_id}/agent-token", headers=admin_headers
-    )
+    rotated = await client.post(f"/api/v1/servers/{server_id}/agent-token", headers=admin_headers)
     second_token = rotated.json()["registration_token"]
 
     old_attempt = await client.post(

@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 
 class CollectorStatus(BaseModel):
@@ -129,3 +129,41 @@ class AgentReportResponse(BaseModel):
     server_id: uuid.UUID
     status: Literal["online"]
     offline_after_seconds: int = Field(ge=1)
+
+
+class DownloadTaskCommand(BaseModel):
+    kind: Literal["download"]
+    task_id: uuid.UUID
+    lease_token: SecretStr = Field(min_length=32, max_length=128)
+    root_path: str = Field(min_length=1, max_length=4096)
+    provider: Literal["huggingface", "modelscope"]
+    source_id: str = Field(min_length=3, max_length=255)
+    revision: str = Field(min_length=1, max_length=128)
+    target_path: str = Field(min_length=1, max_length=4096)
+    cancel_requested: bool = False
+
+
+class DeleteTaskCommand(BaseModel):
+    kind: Literal["delete"]
+    task_id: uuid.UUID
+    lease_token: SecretStr = Field(min_length=32, max_length=128)
+    root_path: str = Field(min_length=1, max_length=4096)
+    model_file_id: uuid.UUID | None
+    source: str = Field(min_length=1, max_length=32)
+    source_id: str = Field(min_length=1, max_length=255)
+    target_path: str = Field(min_length=1, max_length=4096)
+
+
+ModelTaskCommand = Annotated[
+    DownloadTaskCommand | DeleteTaskCommand,
+    Field(discriminator="kind"),
+]
+
+
+class ModelTaskClaimResponse(BaseModel):
+    task: ModelTaskCommand | None = None
+
+
+class DownloadProgressResponse(BaseModel):
+    cancel_requested: bool
+    lease_expires_at: datetime

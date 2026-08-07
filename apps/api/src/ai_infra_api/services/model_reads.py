@@ -129,8 +129,7 @@ async def get_model_detail(
         model_type=model.model_type,
         metadata=_public_metadata(model.metadata_json),
         locations=[
-            _installation_response(model_file, model, server)
-            for model_file, server in rows
+            _installation_response(model_file, model, server) for model_file, server in rows
         ],
     )
 
@@ -159,9 +158,7 @@ async def list_model_directories(
         )
     ).all()
     counts: dict[uuid.UUID, int] = {
-        directory_id: int(count)
-        for directory_id, count in count_rows
-        if directory_id is not None
+        directory_id: int(count) for directory_id, count in count_rows if directory_id is not None
     }
     return [
         ModelDirectoryResponse(

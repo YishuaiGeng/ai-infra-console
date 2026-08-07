@@ -24,6 +24,7 @@ export type DeploymentStatus =
 export type DownloadStatus =
   | "queued"
   | "downloading"
+  | "cancelling"
   | "completed"
   | "failed"
   | "cancelled";
@@ -107,6 +108,63 @@ export interface ModelDefinition {
   downloads: string;
   contextLength: string;
   architecture: string;
+}
+
+export interface CatalogModel {
+  id: string;
+  provider: "huggingface" | "modelscope";
+  providerLabel: "Hugging Face" | "ModelScope";
+  sourceId: string;
+  displayName: string;
+  modelType: string;
+  description: string;
+  tags: string[];
+  downloads: number | null;
+  likes: number | null;
+  license: string;
+  gated: boolean;
+  private: boolean;
+  revision: string;
+  sizeBytes: number | null;
+  architecture: string;
+  lastModified: string | null;
+  sourceUrl: string;
+}
+
+export interface DownloadTarget {
+  server: ModelServer;
+  directories: ModelDirectory[];
+}
+
+export interface ModelDownloadTask {
+  id: string;
+  modelId: string | null;
+  server: ModelServer;
+  directoryId: string | null;
+  targetPath: string;
+  provider: "huggingface" | "modelscope";
+  sourceId: string;
+  revision: string;
+  status: DownloadStatus;
+  downloadedSize: number;
+  totalSize: number | null;
+  speedBytesPerSecond: number | null;
+  progress: number | null;
+  attemptCount: number;
+  errorCode: string | null;
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  lastProgressAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelDeleteTask {
+  id: string;
+  modelFileId: string | null;
+  status: "queued" | "deleting" | "completed" | "failed";
+  targetPath: string;
 }
 
 export interface ModelFile {

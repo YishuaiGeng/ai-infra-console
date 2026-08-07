@@ -60,9 +60,7 @@ async def persist_model_inventory(
     changed = False
     directories = list(
         await session.scalars(
-            select(ServerModelDirectory).where(
-                ServerModelDirectory.server_id == server.id
-            )
+            select(ServerModelDirectory).where(ServerModelDirectory.server_id == server.id)
         )
     )
     directories_by_path = {item.path: item for item in directories}

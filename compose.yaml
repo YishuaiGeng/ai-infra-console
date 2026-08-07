@@ -10,6 +10,14 @@ x-api-environment: &api-environment
   AI_INFRA_ACCESS_TOKEN_MINUTES: ${AI_INFRA_ACCESS_TOKEN_MINUTES:-30}
   AI_INFRA_AGENT_OFFLINE_SECONDS: ${AI_INFRA_AGENT_OFFLINE_SECONDS:-30}
   AI_INFRA_LOG_LEVEL: ${AI_INFRA_LOG_LEVEL:-INFO}
+  AI_INFRA_MUTABLE_SERVER_NAMES: ${AI_INFRA_MUTABLE_SERVER_NAMES:-[]}
+  AI_INFRA_MODEL_TASK_LEASE_SECONDS: ${AI_INFRA_MODEL_TASK_LEASE_SECONDS:-60}
+  AI_INFRA_MODEL_CATALOG_TIMEOUT_SECONDS: ${AI_INFRA_MODEL_CATALOG_TIMEOUT_SECONDS:-10}
+  AI_INFRA_MODEL_CATALOG_CACHE_SECONDS: ${AI_INFRA_MODEL_CATALOG_CACHE_SECONDS:-60}
+  AI_INFRA_HF_TOKEN: ${AI_INFRA_HF_TOKEN:-}
+  AI_INFRA_HF_ENDPOINT: ${AI_INFRA_HF_ENDPOINT:-https://huggingface.co}
+  AI_INFRA_MODELSCOPE_TOKEN: ${AI_INFRA_MODELSCOPE_TOKEN:-}
+  AI_INFRA_MODELSCOPE_ENDPOINT: ${AI_INFRA_MODELSCOPE_ENDPOINT:-https://modelscope.cn}
 
 services:
   postgres:
@@ -99,6 +107,7 @@ services:
 
   agent:
     profiles: ["agent"]
+    image: ai-infra-console-agent:latest
     hostname: phase2-agent-smoke
     build:
       context: ./apps/agent
@@ -107,19 +116,24 @@ services:
       AI_INFRA_AGENT_ENVIRONMENT: development
       AI_INFRA_AGENT_CENTRAL_URL: http://api:8000
       AI_INFRA_AGENT_TOKEN: ${AI_INFRA_AGENT_TOKEN:-}
-      AI_INFRA_AGENT_HEARTBEAT_SECONDS: 10
+      AI_INFRA_AGENT_HEARTBEAT_SECONDS: 1
       AI_INFRA_AGENT_TLS_VERIFY: "true"
-      AI_INFRA_AGENT_ALLOWED_MODEL_DIRECTORIES: '["/models"]'
-      AI_INFRA_AGENT_DEFAULT_MODEL_DIRECTORY: /models
+      AI_INFRA_AGENT_ALLOWED_MODEL_DIRECTORIES: '["/models","/downloads"]'
+      AI_INFRA_AGENT_DEFAULT_MODEL_DIRECTORY: /downloads
       AI_INFRA_AGENT_MODEL_SCAN_INTERVAL_SECONDS: 10
+      AI_INFRA_AGENT_ENABLE_MODEL_MUTATIONS: "true"
+      AI_INFRA_AGENT_MODEL_TASK_PROGRESS_SECONDS: 0.25
+      AI_INFRA_AGENT_MODEL_DOWNLOAD_FIXTURE_SOURCE: /provider-fixtures
     depends_on:
       api:
         condition: service_healthy
     read_only: true
     volumes:
       - ./apps/agent/tests/fixtures/models:/models:ro
+      - ./apps/agent/tests/fixtures/provider:/provider-fixtures:ro
     tmpfs:
-      - /tmp
+      - /tmp:uid=1002,gid=1002,mode=0750
+      - /downloads:uid=1002,gid=1002,mode=0750
     cap_drop:
       - ALL
     security_opt:

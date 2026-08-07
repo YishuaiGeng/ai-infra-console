@@ -139,5 +139,8 @@ describe("infrastructure DTO mapping", () => {
     expect(
       infrastructureEventQueryKeys("server-1", "model.inventory.updated"),
     ).toContainEqual(["models", "summary"]);
+    expect(
+      infrastructureEventQueryKeys("server-1", "model.download.updated"),
+    ).toContainEqual(["downloads"]);
   });
 });

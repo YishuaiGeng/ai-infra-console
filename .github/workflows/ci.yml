@@ -80,22 +80,41 @@ jobs:
           echo "AI_INFRA_POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
           echo "AI_INFRA_WEB_PORT=3100" >> "$GITHUB_ENV"
           echo "AI_INFRA_API_PORT=8100" >> "$GITHUB_ENV"
+          echo 'AI_INFRA_MUTABLE_SERVER_NAMES=["phase3-cpu-agent"]' >> "$GITHUB_ENV"
       - name: Validate Compose configuration
         run: docker compose config --quiet
       - name: Build and start stack
         shell: bash
         run: |
           set +e
-          docker compose up -d --build --wait --wait-timeout 180 2>&1 | tee compose-build.log
+          docker compose --profile agent build agent 2>&1 | tee agent-build.log
+          agent_status=${PIPESTATUS[0]}
+          if [ "$agent_status" -ne 0 ]; then
+            echo "### Agent image build failure" >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 120 agent-build.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            exit "$agent_status"
+          fi
+          docker compose build 2>&1 | tee compose-build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            echo "### Compose build/start failure" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Compose build failure" >> "$GITHUB_STEP_SUMMARY"
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 120 compose-build.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             tail -n 50 compose-build.log | while IFS= read -r line; do
               echo "::error::$line"
             done
+            exit "$status"
+          fi
+          docker compose up -d --wait --wait-timeout 180 2>&1 | tee compose-start.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "### Compose start failure" >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 120 compose-start.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
           exit "$status"
       - name: Verify migrations, Agent, infrastructure API, SSE, Web BFF, and services

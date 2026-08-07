@@ -18,6 +18,8 @@ from ai_infra_agent.schemas import (
     AgentSnapshot,
     CollectorStatus,
     CPUSnapshot,
+    DeleteTaskCommand,
+    DownloadTaskCommand,
     HostSnapshot,
     MemorySnapshot,
     NetworkSnapshot,
@@ -76,9 +78,7 @@ async def test_client_sends_token_only_in_header_and_validates_response() -> Non
             },
         )
 
-    async with CentralClient(
-        client_settings(), transport=httpx.MockTransport(handler)
-    ) as client:
+    async with CentralClient(client_settings(), transport=httpx.MockTransport(handler)) as client:
         response = await client.register(sample_snapshot())
 
     assert response.status == "online"
@@ -113,6 +113,75 @@ async def test_client_redacts_token_from_network_error() -> None:
             await client.heartbeat(sample_snapshot())
 
     assert token not in str(raised.value)
+
+
+async def test_client_model_task_protocol_keeps_leases_in_agent_headers_and_bodies() -> None:
+    requests: list[httpx.Request] = []
+    task_id = uuid.uuid4()
+    lease = "task-lease-that-is-at-least-thirty-two-characters"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path.endswith("/model-tasks/claim"):
+            return httpx.Response(
+                200,
+                json={
+                    "task": {
+                        "kind": "download",
+                        "task_id": str(task_id),
+                        "lease_token": lease,
+                        "root_path": "/data/models",
+                        "provider": "huggingface",
+                        "source_id": "Qwen/Qwen3-8B",
+                        "revision": "main",
+                        "target_path": "/data/models/huggingface/Qwen/Qwen3-8B",
+                        "cancel_requested": False,
+                    }
+                },
+            )
+        if request.url.path.endswith("/progress"):
+            return httpx.Response(
+                200,
+                json={
+                    "cancel_requested": True,
+                    "lease_expires_at": "2026-08-08T00:00:00Z",
+                },
+            )
+        return httpx.Response(204)
+
+    async with CentralClient(client_settings(), transport=httpx.MockTransport(handler)) as client:
+        command = await client.claim_model_task()
+        assert isinstance(command, DownloadTaskCommand)
+        progress = await client.report_download_progress(
+            command,
+            downloaded_size=5,
+            total_size=10,
+            speed_bytes_per_second=2,
+        )
+        assert progress.cancel_requested is True
+        await client.complete_download_task(
+            command,
+            outcome="cancelled",
+            downloaded_size=5,
+            total_size=10,
+        )
+        deletion = DeleteTaskCommand(
+            kind="delete",
+            task_id=uuid.uuid4(),
+            lease_token=SecretStr(lease),
+            root_path="/data/models",
+            model_file_id=None,
+            source="local",
+            source_id="tiny-model",
+            target_path="/data/models/tiny-model.gguf",
+        )
+        await client.complete_delete_task(deletion, outcome="completed")
+
+    assert len(requests) == 4
+    assert all(
+        request.headers["authorization"] == "Bearer private-agent-token" for request in requests
+    )
+    assert lease in requests[1].content.decode("utf-8")
 
 
 def test_client_requires_token() -> None:

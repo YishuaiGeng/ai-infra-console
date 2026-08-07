@@ -20,7 +20,12 @@ INFRASTRUCTURE_EVENT_CHANNEL = "ai-infra-console:infrastructure:v1"
 async def _publish_update(
     redis: Redis,
     server_id: uuid.UUID,
-    kind: Literal["server.updated", "server.offline", "model.inventory.updated"],
+    kind: Literal[
+        "server.updated",
+        "server.offline",
+        "model.inventory.updated",
+        "model.download.updated",
+    ],
 ) -> None:
     event = InfrastructureEvent(
         id=str(uuid.uuid4()),
@@ -44,6 +49,10 @@ async def publish_server_update(redis: Redis, server_id: uuid.UUID) -> None:
 
 async def publish_model_inventory_update(redis: Redis, server_id: uuid.UUID) -> None:
     await _publish_update(redis, server_id, "model.inventory.updated")
+
+
+async def publish_model_download_update(redis: Redis, server_id: uuid.UUID) -> None:
+    await _publish_update(redis, server_id, "model.download.updated")
 
 
 def encode_sse(event: InfrastructureEvent) -> str:

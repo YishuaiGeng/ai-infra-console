@@ -19,6 +19,7 @@ import {
   useServer,
   useSession,
 } from "@/hooks/use-infrastructure";
+import { useDownloadTargets } from "@/hooks/use-downloads";
 import { formatDateTime } from "@/lib/format";
 import { PageContainer } from "@/components/layout/page-container";
 import { GPUCard } from "@/components/gpu/gpu-card";
@@ -51,6 +52,7 @@ export function ServerDetailPage({ serverId }: { serverId: string }) {
   const sessionQuery = useSession();
   const rotateToken = useRotateAgentToken(serverId);
   const revokeToken = useRevokeAgentToken(serverId);
+  const targetsQuery = useDownloadTargets();
   const [registrationToken, setRegistrationToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -197,7 +199,13 @@ export function ServerDetailPage({ serverId }: { serverId: string }) {
             description={`${models.length} physical locations reported by this Agent`}
           >
             {models.length ? (
-              <ModelInstallationTable data={models} />
+              <ModelInstallationTable
+                data={models}
+                isAdmin={isAdmin}
+                mutableServerIds={(targetsQuery.data ?? []).map(
+                  (target) => target.server.id,
+                )}
+              />
             ) : (
               <EmptyState
                 icon={Box}

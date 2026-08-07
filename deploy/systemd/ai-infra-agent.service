@@ -21,6 +21,8 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 ReadOnlyPaths=-/data -/mnt -/home/share
+# Add explicit ReadWritePaths entries for model roots only when mutations are enabled.
+# Example: ReadWritePaths=/data/models
 
 [Install]
 WantedBy=multi-user.target

@@ -234,9 +234,7 @@ async def test_infrastructure_auth_not_found_and_admin_boundary(
     viewer_headers = await auth_headers(app, UserRole.VIEWER)
 
     anonymous = await client.get("/api/v1/gpus")
-    missing = await client.get(
-        f"/api/v1/servers/{uuid.uuid4()}", headers=viewer_headers
-    )
+    missing = await client.get(f"/api/v1/servers/{uuid.uuid4()}", headers=viewer_headers)
     forbidden = await client.post(
         "/api/v1/servers/registrations",
         headers=viewer_headers,

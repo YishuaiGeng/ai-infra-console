@@ -1,0 +1,6 @@
+{
+  "_name_or_path": "Qwen/Qwen3-8B",
+  "architectures": ["Qwen3ForCausalLM"],
+  "model_type": "qwen3",
+  "torch_dtype": "bfloat16"
+}

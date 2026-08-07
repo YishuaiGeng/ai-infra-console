@@ -6,6 +6,25 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOTS = (ROOT / "apps" / "api" / "src", ROOT / "apps" / "agent" / "src")
 FORBIDDEN_ROUTE = re.compile(r"[\"']/(?:exec|shell|command)(?:/|[\"'])", re.IGNORECASE)
 ALLOWED_SUBPROCESS_FILE = ROOT / "apps" / "agent" / "src" / "ai_infra_agent" / "collectors" / "nvidia.py"
+PHASE_5_WEB_PATHS = (
+    ROOT / "apps" / "web" / "src" / "app" / "api" / "catalog",
+    ROOT / "apps" / "web" / "src" / "app" / "api" / "download-targets",
+    ROOT / "apps" / "web" / "src" / "app" / "api" / "downloads",
+    ROOT / "apps" / "web" / "src" / "app" / "api" / "model-deletions",
+    ROOT / "apps" / "web" / "src" / "app" / "api" / "model-files",
+    ROOT / "apps" / "web" / "src" / "components" / "model",
+    ROOT / "apps" / "web" / "src" / "features" / "downloads",
+    ROOT / "apps" / "web" / "src" / "features" / "models",
+    ROOT / "apps" / "web" / "src" / "hooks" / "use-downloads.ts",
+    ROOT / "apps" / "web" / "src" / "lib" / "api" / "downloads.ts",
+)
+MUTABLE_ALLOWLIST_FILES = (
+    ROOT / ".env.example",
+    ROOT / "compose.yaml",
+    ROOT / ".github" / "workflows" / "ci.yml",
+    ROOT / "deploy" / "systemd" / "agent.env.example",
+)
+BACKUP_HOSTS = ("asus-2024", "asus-4090")
 
 
 def python_sources() -> list[Path]:
@@ -23,6 +42,14 @@ def tracked_files() -> list[str]:
     return [item.decode("utf-8") for item in result.stdout.split(b"\0") if item]
 
 
+def source_files(path: Path) -> list[Path]:
+    if path.is_file():
+        return [path]
+    if path.is_dir():
+        return [candidate for candidate in path.rglob("*") if candidate.is_file()]
+    return []
+
+
 def main() -> None:
     failures: list[str] = []
     for path in python_sources():
@@ -34,6 +61,27 @@ def main() -> None:
             failures.append(f"subprocess use outside fixed NVIDIA adapter in {relative}")
         if "shell=True" in content or "os.system(" in content:
             failures.append(f"shell execution primitive in {relative}")
+
+    for root in PHASE_5_WEB_PATHS:
+        for path in source_files(root):
+            content = path.read_text(encoding="utf-8")
+            if "@/mocks" in content:
+                relative = path.relative_to(ROOT).as_posix()
+                failures.append(f"Phase 5 Web source imports mock data: {relative}")
+
+    for path in MUTABLE_ALLOWLIST_FILES:
+        if not path.exists():
+            continue
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "AI_INFRA_MUTABLE_SERVER_NAMES" not in line:
+                continue
+            lowered = line.lower()
+            for host in BACKUP_HOSTS:
+                if host in lowered:
+                    relative = path.relative_to(ROOT).as_posix()
+                    failures.append(
+                        f"backup host appears in mutable allowlist at {relative}:{line_number}"
+                    )
 
     for tracked in tracked_files():
         normalized = tracked.replace("\\", "/")

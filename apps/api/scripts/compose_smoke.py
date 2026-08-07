@@ -7,16 +7,44 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
+from functools import cache
 from http.cookies import SimpleCookie
 from typing import Any, TypeVar
 from urllib.parse import quote_plus
 
 T = TypeVar("T")
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
+
+@cache
+def service_container_id(service: str) -> str:
+    result = subprocess.run(
+        [
+            "docker",
+            "ps",
+            "--filter",
+            f"label=com.docker.compose.service={service}",
+            "--filter",
+            "label=com.docker.compose.oneoff=False",
+            "--format",
+            "{{.ID}}",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    container_ids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if len(container_ids) != 1:
+        raise RuntimeError(
+            f"Expected one running Compose {service} container, found {len(container_ids)}"
+        )
+    return container_ids[0]
 
 
 def compose_exec(*arguments: str) -> str:
     result = subprocess.run(
-        ["docker", "compose", "exec", "-T", "api", *arguments],
+        ["docker", "exec", service_container_id("api"), *arguments],
         check=True,
         capture_output=True,
         text=True,
@@ -29,23 +57,35 @@ def compose_run(
     environment: dict[str, str] | None = None,
     environment_variables: tuple[str, ...] = (),
 ) -> str:
-    command = ["docker", "compose", "run", "--rm", "--no-deps"]
-    for variable in environment_variables:
-        command.extend(("-e", variable))
-    command.extend(("api", *arguments))
+    _, inspect, network_name = running_service_context("api")
+    process_environment = (environment or os.environ).copy()
+    override_names = set(environment_variables)
+    service_environment = {
+        name: value
+        for item in inspect["Config"].get("Env", [])
+        for name, _, value in [str(item).partition("=")]
+    }
+    for name, value in service_environment.items():
+        if name not in override_names and value is not None:
+            process_environment[name] = str(value)
+    command = ["docker", "run", "--rm", "--network", network_name]
+    for name in service_environment.keys() | override_names:
+        command.extend(("--env", name))
+    command.extend((str(inspect["Config"]["Image"]), *arguments))
     result = subprocess.run(
         command,
         check=True,
         capture_output=True,
-        env=environment,
+        env=process_environment,
         text=True,
+        timeout=120,
     )
     return result.stdout.strip()
 
 
 def postgres_exec(*arguments: str) -> str:
     result = subprocess.run(
-        ["docker", "compose", "exec", "-T", "postgres", *arguments],
+        ["docker", "exec", service_container_id("postgres"), *arguments],
         check=True,
         capture_output=True,
         text=True,
@@ -53,19 +93,82 @@ def postgres_exec(*arguments: str) -> str:
     return result.stdout.strip()
 
 
+@cache
+def running_service_context(service: str) -> tuple[str, dict[str, Any], str]:
+    container_id = service_container_id(service)
+    inspect_result = subprocess.run(
+        ["docker", "inspect", container_id],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    inspect = dict(json.loads(inspect_result.stdout)[0])
+    networks = dict(inspect["NetworkSettings"]["Networks"])
+    network_name = next(
+        (name for name in networks if name.endswith("_backend")),
+        None,
+    )
+    if network_name is None:
+        raise RuntimeError("Compose backend network is unavailable")
+    return container_id, inspect, network_name
+
+
+def agent_container_arguments(token: str) -> tuple[list[str], dict[str, str]]:
+    _, _, network_name = running_service_context("api")
+    model_fixtures = os.path.join(ROOT, "apps", "agent", "tests", "fixtures", "models")
+    provider_fixtures = os.path.join(ROOT, "apps", "agent", "tests", "fixtures", "provider")
+    arguments = [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        network_name,
+        "--hostname",
+        "phase2-agent-smoke",
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges:true",
+        "--tmpfs",
+        "/tmp:uid=1002,gid=1002,mode=0750",  # noqa: S108 - container tmpfs mount
+        "--tmpfs",
+        "/downloads:uid=1002,gid=1002,mode=0750",
+        "--mount",
+        f"type=bind,source={model_fixtures},target=/models,readonly",
+        "--mount",
+        f"type=bind,source={provider_fixtures},target=/provider-fixtures,readonly",
+    ]
+    environment = os.environ.copy()
+    environment["AI_INFRA_AGENT_TOKEN"] = token
+    agent_environment = {
+        "AI_INFRA_AGENT_CENTRAL_URL": "http://api:8000",
+        "AI_INFRA_AGENT_TOKEN": None,
+        "AI_INFRA_AGENT_ENVIRONMENT": "development",
+        "AI_INFRA_AGENT_HEARTBEAT_SECONDS": "1",
+        "AI_INFRA_AGENT_TLS_VERIFY": "true",
+        "AI_INFRA_AGENT_ALLOWED_MODEL_DIRECTORIES": '["/models","/downloads"]',
+        "AI_INFRA_AGENT_DEFAULT_MODEL_DIRECTORY": "/downloads",
+        "AI_INFRA_AGENT_MODEL_SCAN_INTERVAL_SECONDS": "10",
+        "AI_INFRA_AGENT_ENABLE_MODEL_MUTATIONS": "true",
+        "AI_INFRA_AGENT_MODEL_TASK_PROGRESS_SECONDS": "0.25",
+        "AI_INFRA_AGENT_MODEL_DOWNLOAD_FIXTURE_SOURCE": "/provider-fixtures",
+    }
+    for name, value in agent_environment.items():
+        arguments.extend(("--env", name if value is None else f"{name}={value}"))
+    arguments.append("ai-infra-console-agent:latest")
+    return arguments, environment
+
+
 def compose_agent(
     command: str,
     token: str,
     *,
-    build: bool = False,
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
-    environment = os.environ.copy()
-    environment["AI_INFRA_AGENT_TOKEN"] = token
-    arguments = ["docker", "compose", "--profile", "agent", "run", "--rm", "--no-deps"]
-    if build:
-        arguments.append("--build")
-    arguments.extend(("-e", "AI_INFRA_AGENT_TOKEN", "agent", "ai-infra-agent", command))
+    arguments, environment = agent_container_arguments(token)
+    arguments.extend(("ai-infra-agent", command))
     result = subprocess.run(
         arguments,
         check=False,
@@ -79,6 +182,45 @@ def compose_agent(
         detail = " | ".join(line.strip() for line in output.splitlines()[-8:] if line.strip())
         raise RuntimeError(f"Agent container {command} failed: {detail[:1800]}")
     return result
+
+
+def start_agent_runtime(token: str) -> str:
+    arguments, environment = agent_container_arguments(token)
+    arguments.insert(3, "-d")
+    arguments.extend(("ai-infra-agent", "run"))
+    result = subprocess.run(
+        arguments,
+        check=True,
+        capture_output=True,
+        env=environment,
+        text=True,
+        timeout=30,
+    )
+    container_id = result.stdout.strip()
+    if not container_id:
+        raise RuntimeError("Detached Agent did not return a container ID")
+    return container_id
+
+
+def stop_agent_runtime(container_id: str) -> None:
+    subprocess.run(
+        ["docker", "stop", "--time", "10", container_id],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+
+def assert_container_path_absent(container_id: str, path: str) -> None:
+    code = "from pathlib import Path; import sys; sys.exit(1 if Path(sys.argv[1]).exists() else 0)"
+    subprocess.run(
+        ["docker", "exec", container_id, "python", "-c", code, path],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
 
 
 def run_check(name: str, check: Callable[[], T]) -> T:
@@ -141,6 +283,54 @@ def request_status(
     return 200
 
 
+def wait_for_task_status(
+    url: str,
+    token: str,
+    expected: set[str],
+    *,
+    timeout: float = 45,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    last: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        last = dict(request_json(url, token=token))
+        status_value = str(last.get("status", ""))
+        if status_value in expected:
+            return last
+        if status_value == "failed":
+            raise RuntimeError(
+                f"Task failed: {last.get('error_code')}: {last.get('error_message')}"
+            )
+        time.sleep(0.5)
+    raise TimeoutError(f"Task did not reach {sorted(expected)}; last state: {last}")
+
+
+def wait_for_model_installation(
+    base_url: str,
+    token: str,
+    server_id: str,
+    source_id: str,
+    status: str,
+    *,
+    timeout: float = 45,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        models = request_json(f"{base_url}/api/v1/models?server_id={server_id}", token=token)
+        match = next(
+            (
+                item
+                for item in models
+                if item.get("source_id") == source_id and item.get("status") == status
+            ),
+            None,
+        )
+        if isinstance(match, dict):
+            return match
+        time.sleep(0.5)
+    raise TimeoutError(f"Model {source_id} did not reach inventory state {status}")
+
+
 def synthetic_snapshot(
     hostname: str,
     *,
@@ -185,9 +375,7 @@ def synthetic_snapshot(
             "os": "Linux",
             "kernel": "6.8.0-compose",
             "architecture": "x86_64",
-            "boot_time": time.strftime(
-                "%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 3600)
-            ),
+            "boot_time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 3600)),
             "cpu": {
                 "model": "Compose Test CPU",
                 "physical_cores": 8,
@@ -383,7 +571,24 @@ def verify_web_session(
     )
     with urllib.request.urlopen(models_request, timeout=10) as response:
         models = list(json.loads(response.read().decode("utf-8")))
-    return {"models": models, "summary": summary}
+    downloads_request = urllib.request.Request(
+        f"{web_url}/api/downloads",
+        headers={"cookie": f"aic_session={morsel.value}"},
+    )
+    with urllib.request.urlopen(downloads_request, timeout=10) as response:
+        downloads = list(json.loads(response.read().decode("utf-8")))
+    targets_request = urllib.request.Request(
+        f"{web_url}/api/download-targets",
+        headers={"cookie": f"aic_session={morsel.value}"},
+    )
+    with urllib.request.urlopen(targets_request, timeout=10) as response:
+        targets = list(json.loads(response.read().decode("utf-8")))
+    return {
+        "downloads": downloads,
+        "models": models,
+        "summary": summary,
+        "targets": targets,
+    }
 
 
 def wait_for_ready(base_url: str, timeout: float = 90) -> dict[str, Any]:
@@ -401,19 +606,48 @@ def wait_for_ready(base_url: str, timeout: float = 90) -> dict[str, Any]:
 
 
 def compose_services() -> list[dict[str, Any]]:
+    _, api_inspect, _ = running_service_context("api")
+    project = api_inspect["Config"]["Labels"].get("com.docker.compose.project")
+    if not project:
+        raise RuntimeError("API container is missing its Compose project label")
     result = subprocess.run(
-        ["docker", "compose", "ps", "--format", "json"],
+        [
+            "docker",
+            "ps",
+            "--filter",
+            f"label=com.docker.compose.project={project}",
+            "--format",
+            "{{.ID}}",
+        ],
         check=True,
         capture_output=True,
         text=True,
+        timeout=15,
     )
-    output = result.stdout.strip()
-    if not output:
+    container_ids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if not container_ids:
         return []
-    if output.startswith("["):
-        value = json.loads(output)
-        return list(value)
-    return [json.loads(line) for line in output.splitlines()]
+    inspect_result = subprocess.run(
+        ["docker", "inspect", *container_ids],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    services = []
+    for item in json.loads(inspect_result.stdout):
+        labels = dict(item["Config"].get("Labels") or {})
+        if labels.get("com.docker.compose.oneoff") != "False":
+            continue
+        health = dict(item["State"].get("Health") or {}).get("Status", "")
+        services.append(
+            {
+                "Service": labels.get("com.docker.compose.service", ""),
+                "State": item["State"]["Status"],
+                "Health": health,
+            }
+        )
+    return services
 
 
 def verify_service_state() -> dict[str, str]:
@@ -465,8 +699,7 @@ def verify_postgres_migrations() -> None:
 
     environment = os.environ.copy()
     environment["AI_INFRA_DATABASE_URL"] = (
-        "postgresql+asyncpg://ai_infra:"
-        f"{quote_plus(password)}@postgres:5432/{database_name}"
+        f"postgresql+asyncpg://ai_infra:{quote_plus(password)}@postgres:5432/{database_name}"
     )
     postgres_exec("dropdb", "--if-exists", "--username", "ai_infra", database_name)
     postgres_exec("createdb", "--username", "ai_infra", database_name)
@@ -520,9 +753,7 @@ def main() -> None:
     )
     current_user = run_check(
         "authenticated identity",
-        lambda: request_json(
-            f"{base_url}/api/v1/auth/me", token=str(login["access_token"])
-        ),
+        lambda: request_json(f"{base_url}/api/v1/auth/me", token=str(login["access_token"])),
     )
     admin_token = str(login["access_token"])
     registration = run_check(
@@ -541,11 +772,9 @@ def main() -> None:
     agent_token = str(registration["registration_token"])
     run_check(
         "Agent container registration",
-        lambda: compose_agent("register", agent_token, build=True),
+        lambda: compose_agent("register", agent_token),
     )
-    run_check(
-        "Agent container heartbeat", lambda: compose_agent("heartbeat", agent_token)
-    )
+    run_check("Agent container heartbeat", lambda: compose_agent("heartbeat", agent_token))
 
     synthetic_online = run_check(
         "four-GPU Agent report",
@@ -576,9 +805,7 @@ def main() -> None:
     viewer_token = run_check("Viewer provisioning", create_viewer_token)
     server_inventory = run_check(
         "multi-server inventory",
-        lambda: request_json(
-            f"{base_url}/api/v1/servers", token=viewer_token
-        ),
+        lambda: request_json(f"{base_url}/api/v1/servers", token=viewer_token),
     )
     if not isinstance(server_inventory, list):
         raise RuntimeError("Server inventory response is not a list")
@@ -593,11 +820,7 @@ def main() -> None:
     if len(server_inventory) != 3:
         raise RuntimeError("Expected exactly three Phase 3 server fixtures")
     offline_server = next(
-        (
-            item
-            for item in server_inventory
-            if item.get("id") == synthetic_offline["server_id"]
-        ),
+        (item for item in server_inventory if item.get("id") == synthetic_offline["server_id"]),
         None,
     )
     if offline_server is None or offline_server.get("status") != "offline":
@@ -605,9 +828,7 @@ def main() -> None:
 
     infrastructure = run_check(
         "infrastructure summary",
-        lambda: request_json(
-            f"{base_url}/api/v1/infrastructure/summary", token=viewer_token
-        ),
+        lambda: request_json(f"{base_url}/api/v1/infrastructure/summary", token=viewer_token),
     )
     expected_summary = {
         "server_count": 3,
@@ -663,9 +884,10 @@ def main() -> None:
             token=viewer_token,
         ),
     )
-    if model_summary.get("model_count") != 2 or model_summary.get(
-        "current_installation_count"
-    ) != 2:
+    if (
+        model_summary.get("model_count") != 2
+        or model_summary.get("current_installation_count") != 2
+    ):
         raise RuntimeError("Model inventory summary does not match fixture models")
     model_directories = run_check(
         "Agent model directory state",
@@ -676,11 +898,16 @@ def main() -> None:
     )
     if (
         not isinstance(model_directories, list)
-        or len(model_directories) != 1
-        or model_directories[0].get("path") != "/models"
-        or model_directories[0].get("model_count") != 2
+        or len(model_directories) != 2
+        or {item.get("path") for item in model_directories} != {"/models", "/downloads"}
     ):
         raise RuntimeError("Agent model directory state is incorrect")
+    inventory_directory = next(item for item in model_directories if item.get("path") == "/models")
+    download_directory = next(
+        item for item in model_directories if item.get("path") == "/downloads"
+    )
+    if inventory_directory.get("model_count") != 2 or download_directory.get("model_count") != 0:
+        raise RuntimeError("Agent model directory counts are incorrect")
 
     viewer_mutation_status = run_check(
         "Viewer mutation boundary",
@@ -709,7 +936,7 @@ def main() -> None:
         lambda: request_status(
             f"{base_url}/api/v1/servers/{registration['server_id']}/model-directories/default",
             method="PUT",
-            payload={"directory_id": model_directories[0]["id"]},
+            payload={"directory_id": inventory_directory["id"]},
             token=viewer_token,
         ),
     )
@@ -724,12 +951,180 @@ def main() -> None:
             lambda: request_json(
                 f"{base_url}/api/v1/servers/{registration['server_id']}/model-directories/default",
                 method="PUT",
-                payload={"directory_id": model_directories[0]["id"]},
+                payload={"directory_id": inventory_directory["id"]},
                 token=admin_token,
             ),
             expected_kind="model.inventory.updated",
         ),
     )
+
+    download_targets = run_check(
+        "allowlisted download targets",
+        lambda: request_json(f"{base_url}/api/v1/download-targets", token=viewer_token),
+    )
+    if (
+        not isinstance(download_targets, list)
+        or len(download_targets) != 1
+        or download_targets[0].get("server", {}).get("id") != registration["server_id"]
+        or {item.get("path") for item in download_targets[0].get("directories", [])}
+        != {"/models", "/downloads"}
+    ):
+        raise RuntimeError("Download targets escaped the Central mutable-server policy")
+
+    download_payload = {
+        "provider": "huggingface",
+        "source_id": "Qwen/Qwen3-Tiny",
+        "revision": "compose-revision",
+        "server_id": registration["server_id"],
+        "directory_id": download_directory["id"],
+    }
+    viewer_download_status = run_check(
+        "Viewer download mutation boundary",
+        lambda: request_status(
+            f"{base_url}/api/v1/downloads",
+            method="POST",
+            payload=download_payload,
+            token=viewer_token,
+        ),
+    )
+    if viewer_download_status != 403:
+        raise RuntimeError("Viewer was allowed to create a model download")
+
+    queued_download: dict[str, Any] = {}
+
+    def queue_download() -> None:
+        queued_download.update(
+            request_json(
+                f"{base_url}/api/v1/downloads",
+                method="POST",
+                payload=download_payload,
+                token=admin_token,
+            )
+        )
+
+    download_sse_event = run_check(
+        "download task SSE event",
+        lambda: verify_sse_event(
+            base_url,
+            viewer_token,
+            str(registration["server_id"]),
+            queue_download,
+            expected_kind="model.download.updated",
+        ),
+    )
+    if (
+        queued_download.get("status") != "queued"
+        or queued_download.get("target_path") != "/downloads/huggingface/Qwen/Qwen3-Tiny"
+    ):
+        raise RuntimeError("Download task did not resolve the advertised directory")
+    download_id = str(queued_download["id"])
+    cancelled_download = run_check(
+        "queued download cancellation",
+        lambda: request_json(
+            f"{base_url}/api/v1/downloads/{download_id}/cancel",
+            method="POST",
+            token=admin_token,
+        ),
+    )
+    if cancelled_download.get("status") != "cancelled":
+        raise RuntimeError("Queued download was not cancelled")
+    retried_download = run_check(
+        "cancelled download retry",
+        lambda: request_json(
+            f"{base_url}/api/v1/downloads/{download_id}/retry",
+            method="POST",
+            token=admin_token,
+        ),
+    )
+    if retried_download.get("status") != "queued":
+        raise RuntimeError("Cancelled download was not requeued")
+
+    agent_runtime = run_check("model task Agent runtime", lambda: start_agent_runtime(agent_token))
+    try:
+        completed_download = run_check(
+            "fixture model download completion",
+            lambda: wait_for_task_status(
+                f"{base_url}/api/v1/downloads/{download_id}",
+                viewer_token,
+                {"completed"},
+            ),
+        )
+        if (
+            completed_download.get("progress") != 100.0
+            or completed_download.get("attempt_count") != 1
+        ):
+            raise RuntimeError("Completed download progress or attempt count is incorrect")
+        downloaded_model = run_check(
+            "download inventory convergence",
+            lambda: wait_for_model_installation(
+                base_url,
+                viewer_token,
+                str(registration["server_id"]),
+                "Qwen/Qwen3-Tiny",
+                "discovered",
+            ),
+        )
+        if downloaded_model.get("path") != queued_download.get("target_path"):
+            raise RuntimeError("Downloaded model inventory path differs from the task")
+
+        confirmation_mismatch = run_check(
+            "delete confirmation boundary",
+            lambda: request_status(
+                f"{base_url}/api/v1/model-files/{downloaded_model['id']}/delete",
+                method="POST",
+                payload={"confirmation": "wrong/model"},
+                token=admin_token,
+            ),
+        )
+        if confirmation_mismatch != 422:
+            raise RuntimeError("Deletion accepted an incorrect model source ID")
+        viewer_delete_status = run_check(
+            "Viewer deletion boundary",
+            lambda: request_status(
+                f"{base_url}/api/v1/model-files/{downloaded_model['id']}/delete",
+                method="POST",
+                payload={"confirmation": "Qwen/Qwen3-Tiny"},
+                token=viewer_token,
+            ),
+        )
+        if viewer_delete_status != 403:
+            raise RuntimeError("Viewer was allowed to delete a model installation")
+        delete_task = run_check(
+            "model deletion queue",
+            lambda: request_json(
+                f"{base_url}/api/v1/model-files/{downloaded_model['id']}/delete",
+                method="POST",
+                payload={"confirmation": "Qwen/Qwen3-Tiny"},
+                token=admin_token,
+            ),
+        )
+        completed_delete = run_check(
+            "model deletion completion",
+            lambda: wait_for_task_status(
+                f"{base_url}/api/v1/model-deletions/{delete_task['id']}",
+                viewer_token,
+                {"completed"},
+            ),
+        )
+        run_check(
+            "deleted path absence",
+            lambda: assert_container_path_absent(
+                agent_runtime, str(completed_delete["target_path"])
+            ),
+        )
+        run_check(
+            "deleted inventory convergence",
+            lambda: wait_for_model_installation(
+                base_url,
+                viewer_token,
+                str(registration["server_id"]),
+                "Qwen/Qwen3-Tiny",
+                "missing",
+            ),
+        )
+    finally:
+        run_check("model task Agent shutdown", lambda: stop_agent_runtime(agent_runtime))
+
     web_result = run_check(
         "Web HttpOnly session and BFF",
         lambda: verify_web_session(web_url, username=username, password=password),
@@ -738,8 +1133,21 @@ def main() -> None:
     if any(web_summary.get(key) != value for key, value in expected_summary.items()):
         raise RuntimeError("Web BFF summary differs from the Central API")
     web_models = web_result["models"]
-    if not isinstance(web_models, list) or len(web_models) != 2:
+    if (
+        not isinstance(web_models, list)
+        or len([item for item in web_models if item.get("status") == "discovered"]) != 2
+        or not any(
+            item.get("source_id") == "Qwen/Qwen3-Tiny" and item.get("status") == "missing"
+            for item in web_models
+        )
+    ):
         raise RuntimeError("Web BFF model inventory differs from the Central API")
+    if (
+        len(web_result["downloads"]) != 1
+        or web_result["downloads"][0].get("status") != "completed"
+        or len(web_result["targets"]) != 1
+    ):
+        raise RuntimeError("Web BFF download workflow differs from the Central API")
 
     run_check(
         "Agent token revocation",
@@ -784,6 +1192,9 @@ def main() -> None:
                 "models": {
                     "formats": sorted(item["format"] for item in model_inventory),
                     "installation_count": model_summary["installation_count"],
+                    "download_sse_kind": download_sse_event["kind"],
+                    "download_status": completed_download["status"],
+                    "delete_status": completed_delete["status"],
                     "sse_kind": model_sse_event["kind"],
                     "viewer_read_verified": True,
                     "web_bff_verified": True,

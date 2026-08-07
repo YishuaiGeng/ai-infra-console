@@ -12,6 +12,8 @@ license = { text = "Apache-2.0" }
 dependencies = [
   "docker>=7.1,<8",
   "httpx>=0.28,<1",
+  "huggingface-hub>=1.0,<2",
+  "modelscope-hub>=0.1.8,<1",
   "nvidia-ml-py>=12.560,<14",
   "psutil>=6.1,<8",
   "pydantic-settings>=2.7,<3",
@@ -26,6 +28,7 @@ dev = [
   "ruff>=0.9,<1",
   "types-docker>=7.1,<8",
   "types-psutil>=7.0,<8",
+  "types-tqdm>=4.67,<5",
 ]
 
 [project.scripts]

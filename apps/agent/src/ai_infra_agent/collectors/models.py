@@ -20,9 +20,7 @@ from ai_infra_agent.schemas import (
 OLLAMA_TAGS_URL = "http://127.0.0.1:11434/api/tags"
 OLLAMA_MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 WEIGHT_SUFFIXES = {".safetensors", ".bin"}
-QUANTIZATION_PATTERN = re.compile(
-    r"(?i)(q[2-8](?:_[a-z0-9]+)+|int[2-8]|fp(?:8|16|32)|bf16)"
-)
+QUANTIZATION_PATTERN = re.compile(r"(?i)(q[2-8](?:_[a-z0-9]+)+|int[2-8]|fp(?:8|16|32)|bf16)")
 
 _cache_lock = Lock()
 _cached_inventory: ModelInventorySnapshot | None = None
@@ -56,6 +54,8 @@ def _walk_directories(root: Path, max_depth: int) -> Iterator[tuple[Path, list[P
         child_directories: list[Path] = []
         for entry in entries:
             try:
+                if entry.name in {".ai-infra-partials", ".ai-infra-cache"}:
+                    continue
                 if entry.is_symlink():
                     if _safe_file(entry, root) is not None:
                         files.append(entry)
@@ -131,7 +131,15 @@ def _hugging_face_identity(path: Path) -> tuple[str, str, str | None] | None:
     return None
 
 
-def _local_identity(path: Path, config: dict[str, Any]) -> tuple[str, str, str | None]:
+def _local_identity(
+    path: Path,
+    config: dict[str, Any],
+    manifest: dict[str, Any],
+) -> tuple[str, str, str | None]:
+    manifest_source = _text(manifest.get("source"), 32)
+    manifest_source_id = _text(manifest.get("source_id"), 255)
+    if manifest_source in {"huggingface", "modelscope"} and manifest_source_id:
+        return manifest_source, manifest_source_id, _text(manifest.get("revision"), 128)
     hugging_face = _hugging_face_identity(path)
     if hugging_face is not None:
         return hugging_face
@@ -164,7 +172,8 @@ def _directory_installation(
     if not sizes:
         return None
     config = _read_json(directory / "config.json", root, max_metadata_bytes)
-    source, source_id, revision = _local_identity(directory, config)
+    manifest = _read_json(directory / ".ai-infra-source.json", root, max_metadata_bytes)
+    source, source_id, revision = _local_identity(directory, config, manifest)
     weight_names = [file.name for file in weights]
     format_name: Literal["safetensors", "pytorch"] = (
         "safetensors"

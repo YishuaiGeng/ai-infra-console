@@ -28,6 +28,8 @@ const statusTone: Record<string, Tone> = {
   running: "blue",
   starting: "blue",
   downloading: "blue",
+  deleting: "blue",
+  cancelling: "yellow",
   queued: "yellow",
   warning: "yellow",
   verifying: "yellow",

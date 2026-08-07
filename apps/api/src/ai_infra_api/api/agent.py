@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Request
 
 from ai_infra_api.core.errors import AppError
@@ -5,14 +7,34 @@ from ai_infra_api.core.middleware import request_id_from
 from ai_infra_api.db.models import ServerAgent
 from ai_infra_api.dependencies import CurrentAgent, DatabaseSession
 from ai_infra_api.schemas.agent import AgentReportResponse, AgentSnapshot
+from ai_infra_api.schemas.model_tasks import (
+    DeleteTerminalRequest,
+    DownloadProgressRequest,
+    DownloadProgressResponse,
+    DownloadTerminalRequest,
+    ModelTaskClaimResponse,
+)
 from ai_infra_api.services.agent_telemetry import persist_agent_snapshot
 from ai_infra_api.services.audit import record_audit
 from ai_infra_api.services.infrastructure_events import (
+    publish_model_download_update,
     publish_model_inventory_update,
     publish_server_update,
 )
+from ai_infra_api.services.model_tasks import (
+    ModelTaskError,
+    claim_model_task,
+    complete_delete_task,
+    complete_download_task,
+    report_download_progress,
+)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
+
+
+def task_error(error: ModelTaskError) -> AppError:
+    status_code = 404 if error.code.endswith("_not_found") else 409
+    return AppError(status_code=status_code, code=error.code, message=error.message)
 
 
 async def save_report(
@@ -81,3 +103,105 @@ async def heartbeat(
     if model_inventory_changed:
         await publish_model_inventory_update(request.app.state.redis, result.server_id)
     return result
+
+
+@router.post("/model-tasks/claim", response_model=ModelTaskClaimResponse)
+async def claim_next_model_task(
+    request: Request,
+    session: DatabaseSession,
+    agent: CurrentAgent,
+) -> ModelTaskClaimResponse:
+    try:
+        task = await claim_model_task(
+            session,
+            request.app.state.settings,
+            agent.server_id,
+        )
+    except ModelTaskError as exc:
+        raise task_error(exc) from exc
+    await session.commit()
+    return ModelTaskClaimResponse(task=task)
+
+
+@router.post(
+    "/download-tasks/{task_id}/progress",
+    response_model=DownloadProgressResponse,
+)
+async def update_download_progress(
+    task_id: str,
+    payload: DownloadProgressRequest,
+    request: Request,
+    session: DatabaseSession,
+    agent: CurrentAgent,
+) -> DownloadProgressResponse:
+    try:
+        result = await report_download_progress(
+            session,
+            request.app.state.settings,
+            agent.server_id,
+            uuid.UUID(task_id),
+            payload,
+        )
+    except (ValueError, ModelTaskError) as exc:
+        if isinstance(exc, ModelTaskError):
+            raise task_error(exc) from exc
+        raise AppError(
+            status_code=404,
+            code="download_task_not_found",
+            message="The download task does not exist.",
+        ) from exc
+    await session.commit()
+    await publish_model_download_update(request.app.state.redis, agent.server_id)
+    return result
+
+
+@router.post("/download-tasks/{task_id}/complete", status_code=204)
+async def finish_download_task(
+    task_id: str,
+    payload: DownloadTerminalRequest,
+    request: Request,
+    session: DatabaseSession,
+    agent: CurrentAgent,
+) -> None:
+    try:
+        await complete_download_task(
+            session,
+            agent.server_id,
+            uuid.UUID(task_id),
+            payload,
+        )
+    except (ValueError, ModelTaskError) as exc:
+        if isinstance(exc, ModelTaskError):
+            raise task_error(exc) from exc
+        raise AppError(
+            status_code=404,
+            code="download_task_not_found",
+            message="The download task does not exist.",
+        ) from exc
+    await session.commit()
+    await publish_model_download_update(request.app.state.redis, agent.server_id)
+
+
+@router.post("/delete-tasks/{task_id}/complete", status_code=204)
+async def finish_delete_task(
+    task_id: str,
+    payload: DeleteTerminalRequest,
+    request: Request,
+    session: DatabaseSession,
+    agent: CurrentAgent,
+) -> None:
+    try:
+        result = await complete_delete_task(
+            session,
+            agent.server_id,
+            uuid.UUID(task_id),
+            payload,
+        )
+    except (ValueError, ModelTaskError) as exc:
+        if isinstance(exc, ModelTaskError):
+            raise task_error(exc) from exc
+        raise AppError(
+            status_code=404, code="delete_task_not_found", message="The delete task does not exist."
+        ) from exc
+    await session.commit()
+    await publish_model_inventory_update(request.app.state.redis, result.server_id)

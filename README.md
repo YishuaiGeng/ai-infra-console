@@ -11,7 +11,7 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 ![AI Infra Console dashboard](./docs/assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> Server, GPU, and installed-model views now use real Central API and outbound Agent data. Phase 5 is replacing the remaining model-library and download fixtures with provider search and allowlisted Agent tasks. Deployment lifecycle actions remain later roadmap work.
+> Server, GPU, installed-model, provider-search, and model-download views now use real Central API and outbound Agent data. Phase 5 implementation is complete and is awaiting its final Linux CI gate. Deployment lifecycle actions remain Phase 6 work.
 
 ## Phase 0 UI coverage (mock-backed)
 
@@ -60,6 +60,14 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 - Reconciled logical models and physical locations across multiple servers without losing failed-root history.
 - Authenticated inventory, model detail, summary, and per-server directory APIs with SSE refresh.
 - Real Installed Models and Server Detail Models views with scan health and Admin-only default selection.
+
+## Phase 5 model download (final verification)
+
+- Normalized Hugging Face and ModelScope search through official provider clients.
+- Admin-only download, cancel, retry, and exact-confirm deletion workflows with Viewer read access.
+- Outbound Agent task leases, cooperative cancellation, atomic publish, immediate inventory refresh, and safe retry behavior.
+- Central and Agent host/path allowlists that permit mutation only on explicitly configured model roots.
+- Progress, byte totals, speed, attempts, timestamps, and bounded provider errors in the real Downloads view.
 
 ## Product workflow
 
@@ -160,7 +168,7 @@ ai-infra-console/
 └── package.json             # npm workspace entry point
 ```
 
-Phase 4 passed its code-level, browser, and Linux Compose gates. Phase 5 is tracked in [`docs/phases/PHASE_5_MODEL_DOWNLOAD.md`](./docs/phases/PHASE_5_MODEL_DOWNLOAD.md).
+Phase 4 passed its code-level, browser, and Linux Compose gates. Phase 5 code and local runtime checks are complete; its final Linux gate is tracked in [`docs/phases/PHASE_5_MODEL_DOWNLOAD.md`](./docs/phases/PHASE_5_MODEL_DOWNLOAD.md).
 
 ## Roadmap
 

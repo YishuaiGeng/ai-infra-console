@@ -51,9 +51,7 @@ async def persist_agent_snapshot(
     agent.version = snapshot.agent_version
     agent.last_seen = now
 
-    metric = await session.scalar(
-        select(ServerMetric).where(ServerMetric.server_id == server.id)
-    )
+    metric = await session.scalar(select(ServerMetric).where(ServerMetric.server_id == server.id))
     if metric is None:
         metric = ServerMetric(server_id=server.id)
         session.add(metric)
@@ -79,9 +77,7 @@ async def persist_agent_snapshot(
         "runtimes": snapshot.host.runtimes.model_dump(mode="json"),
     }
 
-    existing_gpus = list(
-        await session.scalars(select(GPU).where(GPU.server_id == server.id))
-    )
+    existing_gpus = list(await session.scalars(select(GPU).where(GPU.server_id == server.id)))
     by_uuid = {item.uuid: item for item in existing_gpus}
     by_index = {item.gpu_index: item for item in existing_gpus}
     for existing in existing_gpus:
