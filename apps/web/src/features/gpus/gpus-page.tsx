@@ -106,13 +106,15 @@ const columns: DataTableColumn<GPU>[] = helper.columns([
   }),
   helper.accessor("workload", {
     header: "Workload",
-    cell: ({ getValue }) =>
+    cell: ({ getValue, row }) =>
       getValue() ? (
         <span className="text-xs font-medium">{getValue()}</span>
-      ) : (
+      ) : row.original.status === "available" ? (
         <span className="text-xs text-emerald-600 dark:text-emerald-400">
           Available
         </span>
+      ) : (
+        <span className="text-xs text-muted-foreground">Unavailable</span>
       ),
     sortFn: "text",
   }),

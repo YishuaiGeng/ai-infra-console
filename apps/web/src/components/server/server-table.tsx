@@ -66,14 +66,17 @@ const columns: DataTableColumn<Server>[] = helper.columns([
   }),
   helper.accessor("gpuModel", {
     header: "GPU",
-    cell: ({ row }) => (
-      <div className="whitespace-nowrap">
-        <span className="font-medium">{row.original.gpuCount}x</span>{" "}
-        <span className="text-xs text-muted-foreground">
-          {row.original.gpuModel}
-        </span>
-      </div>
-    ),
+    cell: ({ row }) =>
+      row.original.gpuCount === 0 ? (
+        <span className="text-xs text-muted-foreground">CPU only</span>
+      ) : (
+        <div className="whitespace-nowrap">
+          <span className="font-medium">{row.original.gpuCount}x</span>{" "}
+          <span className="text-xs text-muted-foreground">
+            {row.original.gpuModel}
+          </span>
+        </div>
+      ),
     sortFn: "text",
   }),
   helper.accessor("gpuMemoryTotalGb", {
