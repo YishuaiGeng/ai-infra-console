@@ -2,7 +2,7 @@
 
 ## Status
 
-- State: In progress; code-level plan established on 2026-08-08
+- State: Complete on 2026-08-08
 - Entry gate: Phase 1 complete, including Linux Compose and PostgreSQL runtime evidence
 - Exit gate: every acceptance item in this document has direct automated or runtime evidence
 - Scope boundary: no model scanning/download, deployment lifecycle, log streaming, or UI data replacement
@@ -25,11 +25,11 @@
 
 ### Phase 2.1 Agent package and configuration
 
-- [ ] Create `apps/agent/pyproject.toml`, lockfile, `src/ai_infra_agent`, tests, and CLI entry point.
-- [ ] Add typed settings for Central URL, token, heartbeat interval, request timeout, TLS verification, and log level.
-- [ ] Validate production URLs and prevent secrets from appearing in settings representations or logs.
-- [ ] Add root lint, typecheck, test, and aggregate Agent commands.
-- [ ] Emit structured logs with Agent version and request IDs.
+- [x] Create `apps/agent/pyproject.toml`, lockfile, `src/ai_infra_agent`, tests, and CLI entry point.
+- [x] Add typed settings for Central URL, token, heartbeat interval, request timeout, TLS verification, and log level.
+- [x] Validate production URLs and prevent secrets from appearing in settings representations or logs.
+- [x] Add root lint, typecheck, test, and aggregate Agent commands.
+- [x] Emit structured logs with Agent version and request IDs.
 
 Evidence:
 
@@ -37,12 +37,12 @@ Evidence:
 
 ### Phase 2.2 Central registration and token lifecycle
 
-- [ ] Add Admin-only API operations to create a server registration, rotate its token, and revoke it.
-- [ ] Generate at least 256 bits of entropy and return the plaintext token only at creation/rotation time.
-- [ ] Store only a deterministic digest in `server_agents`; never log or serialize the digest to public responses.
-- [ ] Add Agent authentication that is separate from Web JWT authentication.
-- [ ] Implement `POST /api/v1/agent/register` with hostname, Agent version, and initial inventory.
-- [ ] Record registration, rotation, revocation, success, and rejection in the audit log without secrets.
+- [x] Add Admin-only API operations to create a server registration, rotate its token, and revoke it.
+- [x] Generate at least 256 bits of entropy and return the plaintext token only at creation/rotation time.
+- [x] Store only a deterministic digest in `server_agents`; never log or serialize the digest to public responses.
+- [x] Add Agent authentication that is separate from Web JWT authentication.
+- [x] Implement `POST /api/v1/agent/register` with hostname, Agent version, and initial inventory.
+- [x] Record registration, rotation, revocation, success, and rejection in the audit log without secrets.
 
 Evidence:
 
@@ -50,12 +50,12 @@ Evidence:
 
 ### Phase 2.3 Host and runtime collectors
 
-- [ ] Collect hostname, OS, kernel, architecture, boot time, CPU model/count/load, RAM, disks, and network counters with `psutil`/standard APIs.
-- [ ] Detect Python version and Agent version.
-- [ ] Detect Docker daemon/version through the Docker SDK without failing the whole snapshot when unavailable.
-- [ ] Detect Ollama availability/version through its local API or a fixed read-only probe.
-- [ ] Define Pydantic snapshot schemas shared by collection, transport, and API validation.
-- [ ] Normalize byte counts, percentages, timestamps, nullable values, and collector errors.
+- [x] Collect hostname, OS, kernel, architecture, boot time, CPU model/count/load, RAM, disks, and network counters with `psutil`/standard APIs.
+- [x] Detect Python version and Agent version.
+- [x] Detect Docker daemon/version through the Docker SDK without failing the whole snapshot when unavailable.
+- [x] Detect Ollama availability/version through its local API or a fixed read-only probe.
+- [x] Define Pydantic snapshot schemas shared by collection, transport, and API validation.
+- [x] Normalize byte counts, percentages, timestamps, nullable values, and collector errors.
 
 Evidence:
 
@@ -63,11 +63,11 @@ Evidence:
 
 ### Phase 2.4 NVIDIA GPU and process collectors
 
-- [ ] Implement NVML collection for driver/CUDA capability, GPU UUID/index/name, utilization, VRAM, temperature, power, fan, and status.
-- [ ] Collect compute/graphics process PID, username, command name, and GPU memory where available.
-- [ ] Implement a fixed-column, fixed-argument `nvidia-smi` CSV fallback with strict parsing.
-- [ ] Deduplicate process records and normalize units across NVML and fallback results.
-- [ ] Return an empty GPU collection with an explicit availability reason on CPU-only hosts.
+- [x] Implement NVML collection for driver/CUDA capability, GPU UUID/index/name, utilization, VRAM, temperature, power, fan, and status.
+- [x] Collect compute/graphics process PID, username, command name, and GPU memory where available.
+- [x] Implement a fixed-column, fixed-argument `nvidia-smi` CSV fallback with strict parsing.
+- [x] Deduplicate process records and normalize units across NVML and fallback results.
+- [x] Return an empty GPU collection with an explicit availability reason on CPU-only hosts.
 
 Evidence:
 
@@ -75,12 +75,12 @@ Evidence:
 
 ### Phase 2.5 Heartbeat persistence and offline detection
 
-- [ ] Add an Alembic migration for current server metrics and current GPU process snapshots.
-- [ ] Implement `POST /api/v1/agent/heartbeat` with Agent bearer authentication.
-- [ ] Transactionally update server inventory, Agent version/last_seen, GPU inventory, GPU metrics, server metrics, and process snapshots.
-- [ ] Mark the reporting server online only after a valid heartbeat commits.
-- [ ] Implement configurable stale-server evaluation with a 30-second default.
-- [ ] Make repeated heartbeats idempotent for server/GPU identity and bounded for current process data.
+- [x] Add an Alembic migration for current server metrics and current GPU process snapshots.
+- [x] Implement `POST /api/v1/agent/heartbeat` with Agent bearer authentication.
+- [x] Transactionally update server inventory, Agent version/last_seen, GPU inventory, GPU metrics, server metrics, and process snapshots.
+- [x] Mark the reporting server online only after a valid heartbeat commits.
+- [x] Implement configurable stale-server evaluation with a 30-second default.
+- [x] Make repeated heartbeats idempotent for server/GPU identity and bounded for current process data.
 
 Evidence:
 
@@ -88,11 +88,11 @@ Evidence:
 
 ### Phase 2.6 Agent client and resilient loop
 
-- [ ] Implement registration and heartbeat HTTP clients with explicit connect/read timeouts.
-- [ ] Send the token only in the Authorization header and redact it from exceptions/logs.
-- [ ] Add the default 10-second loop, bounded exponential backoff, jitter, and graceful shutdown.
-- [ ] Distinguish authentication rejection from temporary network/server failure.
-- [ ] Reuse one HTTP client and avoid overlapping collection or heartbeat cycles.
+- [x] Implement registration and heartbeat HTTP clients with explicit connect/read timeouts.
+- [x] Send the token only in the Authorization header and redact it from exceptions/logs.
+- [x] Add the default 10-second loop, bounded exponential backoff, jitter, and graceful shutdown.
+- [x] Distinguish authentication rejection from temporary network/server failure.
+- [x] Reuse one HTTP client and avoid overlapping collection or heartbeat cycles.
 
 Evidence:
 
@@ -100,11 +100,11 @@ Evidence:
 
 ### Phase 2.7 Allowlisted operation framework
 
-- [ ] Define typed operation names and payload/result contracts.
-- [ ] Register only Phase 2 read operations: `get_system_info`, `get_gpu_info`, and `get_gpu_processes`.
-- [ ] Reject unknown, malformed, and not-yet-enabled operations before dispatch.
-- [ ] Confirm no `/exec`, `/shell`, `/command`, raw subprocess, or arbitrary argument endpoint exists.
-- [ ] Keep all subprocess use inside fixed collector adapters with constant executable arguments.
+- [x] Define typed operation names and payload/result contracts.
+- [x] Register only Phase 2 read operations: `get_system_info`, `get_gpu_info`, and `get_gpu_processes`.
+- [x] Reject unknown, malformed, and not-yet-enabled operations before dispatch.
+- [x] Confirm no `/exec`, `/shell`, `/command`, raw subprocess, or arbitrary argument endpoint exists.
+- [x] Keep all subprocess use inside fixed collector adapters with constant executable arguments.
 
 Evidence:
 
@@ -112,10 +112,10 @@ Evidence:
 
 ### Phase 2.8 Packaging and Linux service operation
 
-- [ ] Add a non-root Agent Dockerfile and an opt-in Compose smoke profile or equivalent isolated fixture.
-- [ ] Add a systemd unit template with restart policy, environment-file loading, and hardened defaults.
-- [ ] Add an installation/configuration script that does not embed real hostnames, addresses, or tokens.
-- [ ] Document token provisioning, registration, startup, upgrade, revocation, troubleshooting, and CPU-only behavior.
+- [x] Add a non-root Agent Dockerfile and an opt-in Compose smoke profile or equivalent isolated fixture.
+- [x] Add a systemd unit template with restart policy, environment-file loading, and hardened defaults.
+- [x] Add an installation/configuration script that does not embed real hostnames, addresses, or tokens.
+- [x] Document token provisioning, registration, startup, upgrade, revocation, troubleshooting, and CPU-only behavior.
 
 Evidence:
 
@@ -123,24 +123,48 @@ Evidence:
 
 ### Phase 2.9 Phase gate
 
-- [ ] Run Web, API, Agent lint/typecheck/tests and production builds.
-- [ ] Run API migration tests against PostgreSQL.
-- [ ] Run an end-to-end registration and heartbeat against the Compose Central stack.
-- [ ] Verify online state, persisted host metrics, GPU inventory/process shape, Agent version, and token revocation.
-- [ ] Run the Agent collector on a CPU-only environment and retain evidence of graceful degradation.
-- [ ] Scan tracked routes/code for prohibited generic command interfaces and tracked files for credentials.
-- [ ] Record exact evidence and unresolved hardware-specific items before opening Phase 3.
+- [x] Run Web, API, Agent lint/typecheck/tests and production builds.
+- [x] Run API migration tests against PostgreSQL.
+- [x] Run an end-to-end registration and heartbeat against the Compose Central stack.
+- [x] Verify online state, persisted host metrics, GPU inventory/process shape, Agent version, and token revocation.
+- [x] Run the Agent collector on a CPU-only environment and retain evidence of graceful degradation.
+- [x] Scan tracked routes/code for prohibited generic command interfaces and tracked files for credentials.
+- [x] Record exact evidence and unresolved hardware-specific items before opening Phase 3.
+
+## Current evidence
+
+Recorded on 2026-08-08:
+
+- `npm run check`: pass for the Phase 0 Web app, Phase 1/2 API, Agent, and security scan.
+- Web: lint, typecheck, and Next.js production build pass with 23 generated pages.
+- API: Ruff and strict mypy pass; 26 tests pass with 82% measured coverage.
+- Agent: frozen dependency sync, Ruff, strict mypy, and 28 tests pass with 82% measured coverage.
+- Agent packaging: wheel and source distribution build successfully from the locked project.
+- Local hardware collection: the real collector reports Windows host metrics, disks, runtime availability, and one NVIDIA GPU without exposing host identity.
+- CPU-only behavior: automated tests and the Compose Agent fixture verify an empty GPU collection with an explicit unavailable state.
+- Synthetic multi-GPU coverage: tests persist and update a four-GPU snapshot plus deduplicated process records.
+- `npm run api:smoke`: real local HTTP authentication, readiness, Redis queue, and Worker execution pass.
+- GitHub Actions run `31203551373`: Web, API, Agent, and Compose jobs all pass on Linux.
+- Compose Agent smoke: an isolated non-root Agent registers, heartbeats, appears online with persisted inventory, and is rejected after token revocation.
+- PostgreSQL migration smoke: isolated upgrade, downgrade, and re-upgrade pass with all 17 required tables.
+- Static security scan: no generic command route, arbitrary subprocess adapter, tracked credential, or tracked private server file is present.
+- The hardened systemd unit and installer pass Linux shell/static checks available in CI; final service enablement remains a deployment-host task.
+
+Phase gate result:
+
+- No Phase 2 acceptance item remains open. Phase 3 may proceed from this recorded baseline.
+- `asus-2024` and `asus-4090` were not accessed or modified.
 
 ## Exit acceptance
 
-- [ ] A newly issued registration token connects exactly one Agent and is never stored in plaintext.
-- [ ] Revocation blocks subsequent registration and heartbeat requests.
-- [ ] Default heartbeat cadence is 10 seconds and the default offline threshold is 30 seconds.
-- [ ] Host, runtime, GPU, GPU process, and Agent version payloads are validated and persisted.
-- [ ] NVML is preferred and `nvidia-smi` is used only as the fixed fallback.
-- [ ] CPU-only and missing-runtime hosts remain operational with explicit unavailable states.
-- [ ] No arbitrary command or inbound remote-shell capability exists.
-- [ ] Phase 1 Web/API/Compose checks still pass.
-- [ ] No modification was made to `asus-2024` or `asus-4090`.
+- [x] A newly issued registration token connects exactly one Agent and is never stored in plaintext.
+- [x] Revocation blocks subsequent registration and heartbeat requests.
+- [x] Default heartbeat cadence is 10 seconds and the default offline threshold is 30 seconds.
+- [x] Host, runtime, GPU, GPU process, and Agent version payloads are validated and persisted.
+- [x] NVML is preferred and `nvidia-smi` is used only as the fixed fallback.
+- [x] CPU-only and missing-runtime hosts remain operational with explicit unavailable states.
+- [x] No arbitrary command or inbound remote-shell capability exists.
+- [x] Phase 1 Web/API/Compose checks still pass.
+- [x] No modification was made to `asus-2024` or `asus-4090`.
 
-Phase 3 must not start until every item above is checked and backed by current command or runtime output.
+Phase 2 closed after every item above was checked and backed by current command or runtime output.

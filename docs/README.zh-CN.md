@@ -1,6 +1,6 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-2%20Agent-f59e0b)](./DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-3%20Server%20Integration-2563eb)](./DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](../LICENSE)
 
@@ -11,7 +11,7 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 ![AI Infra Console Dashboard](./assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> Phase 0 前端仍使用一套本地 Mock 数据，尚未接入后端。Phase 1 Central API、认证、Migration、Redis、Worker 与五服务 Compose 栈已经完成。Phase 2 Agent 正在开发；真实模型下载、部署生命周期操作和 vLLM 部署尚未实现。
+> Phase 0 前端仍使用一套本地 Mock 数据，Phase 3 正在把基础设施页面接入真实数据。Phase 1 Central 栈与 Phase 2 出站 Agent 已经完成；真实模型下载、部署生命周期操作和 vLLM 部署尚未实现。
 
 ## Phase 0 界面覆盖范围（Mock 驱动）
 
@@ -35,7 +35,7 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 - Web、API、PostgreSQL、Redis、Worker 五服务 Compose 定义。
 - 后端 Lint、类型、Migration、认证、错误、健康检查和 Worker 自动化测试。
 
-## Phase 2 Agent（进行中）
+## Phase 2 Agent（已完成）
 
 - 仅主动出站连接的 Python Agent、严格环境配置和结构化日志。
 - Admin 签发的单 Agent 注册 Token，仅存摘要，并支持轮换与吊销。
@@ -143,7 +143,7 @@ ai-infra-console/
 └── package.json             # npm workspace 入口
 ```
 
-`apps/agent` 正按照 [`docs/phases/PHASE_2_AGENT.md`](./phases/PHASE_2_AGENT.md) 的代码级计划执行运行时验收。
+`apps/agent` 已通过代码级任务和 Linux Compose 阶段门。Phase 3 代码级计划见 [`docs/phases/PHASE_3_SERVER_INTEGRATION.md`](./phases/PHASE_3_SERVER_INTEGRATION.md)。
 
 ## Roadmap
 
@@ -151,8 +151,8 @@ ai-infra-console/
 | --- | --- | --- |
 | 0 | UI Foundation | 已完成 |
 | 1 | Central API、数据库、Redis、认证 | 已完成 |
-| 2 | Agent 注册、心跳、硬件采集 | 进行中 |
-| 3 | 接入真实服务器和 GPU | 计划中 |
+| 2 | Agent 注册、心跳、硬件采集 | 已完成 |
+| 3 | 接入真实服务器和 GPU | 进行中 |
 | 4 | 模型目录扫描与 Inventory | 计划中 |
 | 5 | Hugging Face / ModelScope 下载 | 计划中 |
 | 6 | Docker / vLLM 部署生命周期 | 计划中 |

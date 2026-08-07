@@ -1,6 +1,6 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-2%20Agent-f59e0b)](./docs/DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-3%20Server%20Integration-2563eb)](./docs/DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](./LICENSE)
 
@@ -11,7 +11,7 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 ![AI Infra Console dashboard](./docs/assets/dashboard-dark.png)
 
 > [!IMPORTANT]
-> The Phase 0 web UI still uses one local mock dataset and is not yet connected to the backend. Phase 1 Central API, authentication, migrations, Redis, worker, and five-service Compose stack are complete. Phase 2 Agent development is in progress; real model download, deployment lifecycle actions, and vLLM deployment are not implemented yet.
+> The Phase 0 web UI still uses one local mock dataset and is being connected to real infrastructure data in Phase 3. The Phase 1 Central stack and Phase 2 outbound Agent are complete. Real model download, deployment lifecycle actions, and vLLM deployment are not implemented yet.
 
 ## Phase 0 UI coverage (mock-backed)
 
@@ -35,7 +35,7 @@ AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, mod
 - Five-service Compose definition for web, API, PostgreSQL, Redis, and worker.
 - Automated backend lint, type checking, migration, authentication, error, health, and worker tests.
 
-## Phase 2 Agent (in progress)
+## Phase 2 Agent (complete)
 
 - Outbound-only Python Agent with strict environment configuration and structured logs.
 - Admin-issued per-Agent registration tokens with digest-only storage, rotation, and revocation.
@@ -143,7 +143,7 @@ ai-infra-console/
 └── package.json             # npm workspace entry point
 ```
 
-The `apps/agent` package is being validated under the code-level plan in [`docs/phases/PHASE_2_AGENT.md`](./docs/phases/PHASE_2_AGENT.md).
+The `apps/agent` package passed its code-level and Linux Compose gate. Phase 3 is tracked in [`docs/phases/PHASE_3_SERVER_INTEGRATION.md`](./docs/phases/PHASE_3_SERVER_INTEGRATION.md).
 
 ## Roadmap
 
@@ -151,8 +151,8 @@ The `apps/agent` package is being validated under the code-level plan in [`docs/
 | --- | --- | --- |
 | 0 | UI Foundation | Complete |
 | 1 | Central API, database, Redis, authentication | Complete |
-| 2 | Agent registration, heartbeat, hardware collection | In progress |
-| 3 | Real server and GPU integration | Planned |
+| 2 | Agent registration, heartbeat, hardware collection | Complete |
+| 3 | Real server and GPU integration | In progress |
 | 4 | Model inventory and directory scanning | Planned |
 | 5 | Hugging Face and ModelScope downloads | Planned |
 | 6 | Docker and vLLM deployment lifecycle | Planned |
