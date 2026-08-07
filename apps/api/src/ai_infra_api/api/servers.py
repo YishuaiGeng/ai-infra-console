@@ -175,8 +175,8 @@ async def change_default_model_directory(
     if result is None:
         raise AppError(
             status_code=422,
-            code="model_directory_not_allowed",
-            message="The default must be an Agent-advertised allowed directory.",
+            code="model_directory_not_selectable",
+            message="The default must be an available Agent-advertised directory.",
         )
     await record_audit(
         session,

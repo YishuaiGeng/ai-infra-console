@@ -229,6 +229,13 @@ async def test_inventory_heartbeat_reads_permissions_and_reconciliation(
     ).status_code == 200
     stale = (await client.get("/api/v1/models", headers=viewer_headers)).json()
     assert {item["status"] for item in stale} == {"stale"}
+    unavailable_default = await client.put(
+        f"/api/v1/servers/{server_id}/model-directories/default",
+        json={"directory_id": directory_id},
+        headers=admin_headers,
+    )
+    assert unavailable_default.status_code == 422
+    assert unavailable_default.json()["error"]["code"] == "model_directory_not_selectable"
 
     recovered_empty = heartbeat(
         directories=[directory()],

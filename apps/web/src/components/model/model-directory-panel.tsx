@@ -64,7 +64,10 @@ export function ModelDirectoryPanel({
                     : "not scanned"}
                 </div>
               </div>
-              {isAdmin && !directory.isDefault && directory.isAllowed && (
+              {isAdmin &&
+                !directory.isDefault &&
+                directory.isAllowed &&
+                directory.isAvailable && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -73,7 +76,7 @@ export function ModelDirectoryPanel({
                 >
                   <Star /> Set default
                 </Button>
-              )}
+                )}
             </div>
           ))}
         </div>

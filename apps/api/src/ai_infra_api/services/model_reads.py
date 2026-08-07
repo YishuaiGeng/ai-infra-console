@@ -189,6 +189,7 @@ async def set_default_model_directory(
             ServerModelDirectory.id == directory_id,
             ServerModelDirectory.server_id == server_id,
             ServerModelDirectory.is_allowed.is_(True),
+            ServerModelDirectory.is_available.is_(True),
         )
     )
     if directory is None:
