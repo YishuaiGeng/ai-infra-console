@@ -7,6 +7,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from typing import Any, TypeVar
+from urllib.parse import quote_plus
 
 T = TypeVar("T")
 
@@ -21,19 +22,28 @@ def compose_exec(*arguments: str) -> str:
     return result.stdout.strip()
 
 
-def compose_run(*arguments: str) -> str:
+def compose_run(
+    *arguments: str,
+    environment: dict[str, str] | None = None,
+    environment_variables: tuple[str, ...] = (),
+) -> str:
+    command = ["docker", "compose", "run", "--rm", "--no-deps"]
+    for variable in environment_variables:
+        command.extend(("-e", variable))
+    command.extend(("api", *arguments))
     result = subprocess.run(
-        ["docker", "compose", "run", "--rm", "--no-deps", "api", *arguments],
+        command,
         check=True,
         capture_output=True,
+        env=environment,
         text=True,
     )
     return result.stdout.strip()
 
 
-def compose_command(*arguments: str) -> str:
+def postgres_exec(*arguments: str) -> str:
     result = subprocess.run(
-        ["docker", "compose", *arguments],
+        ["docker", "compose", "exec", "-T", "postgres", *arguments],
         check=True,
         capture_output=True,
         text=True,
@@ -156,6 +166,45 @@ else:
     return json.loads(compose_exec("python", "-c", code))
 
 
+def verify_postgres_migrations() -> None:
+    database_name = "ai_infra_migration_smoke"
+    password = os.environ.get("AI_INFRA_POSTGRES_PASSWORD")
+    if not password:
+        raise RuntimeError("AI_INFRA_POSTGRES_PASSWORD is required for migration smoke")
+
+    environment = os.environ.copy()
+    environment["AI_INFRA_DATABASE_URL"] = (
+        "postgresql+asyncpg://ai_infra:"
+        f"{quote_plus(password)}@postgres:5432/{database_name}"
+    )
+    postgres_exec("dropdb", "--if-exists", "--username", "ai_infra", database_name)
+    postgres_exec("createdb", "--username", "ai_infra", database_name)
+    try:
+        compose_run(
+            "alembic",
+            "upgrade",
+            "head",
+            environment=environment,
+            environment_variables=("AI_INFRA_DATABASE_URL",),
+        )
+        compose_run(
+            "alembic",
+            "downgrade",
+            "base",
+            environment=environment,
+            environment_variables=("AI_INFRA_DATABASE_URL",),
+        )
+        compose_run(
+            "alembic",
+            "upgrade",
+            "head",
+            environment=environment,
+            environment_variables=("AI_INFRA_DATABASE_URL",),
+        )
+    finally:
+        postgres_exec("dropdb", "--if-exists", "--username", "ai_infra", database_name)
+
+
 def main() -> None:
     api_port = os.environ.get("AI_INFRA_API_PORT", "8000")
     base_url = f"http://127.0.0.1:{api_port}"
@@ -165,25 +214,7 @@ def main() -> None:
         raise RuntimeError("AI_INFRA_BOOTSTRAP_ADMIN_PASSWORD is required for Compose smoke")
 
     run_check("initial readiness", lambda: wait_for_ready(base_url))
-    run_check("stop API clients", lambda: compose_command("stop", "web", "api"))
-    run_check(
-        "migration downgrade", lambda: compose_run("alembic", "downgrade", "base")
-    )
-    run_check("migration upgrade", lambda: compose_run("alembic", "upgrade", "head"))
-    run_check("administrator bootstrap", lambda: compose_run("ai-infra-bootstrap"))
-    run_check(
-        "restart API clients",
-        lambda: compose_command(
-            "up",
-            "-d",
-            "--no-build",
-            "--wait",
-            "--wait-timeout",
-            "90",
-            "api",
-            "web",
-        ),
-    )
+    run_check("PostgreSQL migration cycle", verify_postgres_migrations)
     readiness = run_check("post-migration readiness", lambda: wait_for_ready(base_url))
 
     login = run_check(

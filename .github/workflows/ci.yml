@@ -92,12 +92,11 @@ jobs:
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             tail -n 100 compose-smoke.log >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
-            tail -n 50 compose-smoke.log | while IFS= read -r line; do
-              echo "::error::$line"
-            done
             failure_line=$(grep -F '[compose-smoke] failed:' compose-smoke.log | tail -n 1)
             if [ -n "$failure_line" ]; then
               echo "::error title=Compose smoke stage::$failure_line"
+            else
+              echo "::error title=Compose smoke failure::See the job summary for details."
             fi
           fi
           exit "$status"
