@@ -1,0 +1,135 @@
+name: ai-infra-console
+
+x-api-environment: &api-environment
+  AI_INFRA_ENVIRONMENT: ${AI_INFRA_ENVIRONMENT:-development}
+  AI_INFRA_DATABASE_URL: postgresql+asyncpg://ai_infra:${AI_INFRA_POSTGRES_PASSWORD:-ai_infra_dev}@postgres:5432/ai_infra
+  AI_INFRA_REDIS_URL: redis://redis:6379/0
+  AI_INFRA_JWT_SECRET: ${AI_INFRA_JWT_SECRET:-development-only-change-me}
+  AI_INFRA_BOOTSTRAP_ADMIN_USERNAME: ${AI_INFRA_BOOTSTRAP_ADMIN_USERNAME:-admin}
+  AI_INFRA_BOOTSTRAP_ADMIN_PASSWORD: ${AI_INFRA_BOOTSTRAP_ADMIN_PASSWORD:-}
+  AI_INFRA_ACCESS_TOKEN_MINUTES: ${AI_INFRA_ACCESS_TOKEN_MINUTES:-30}
+  AI_INFRA_LOG_LEVEL: ${AI_INFRA_LOG_LEVEL:-INFO}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ai_infra
+      POSTGRES_USER: ai_infra
+      POSTGRES_PASSWORD: ${AI_INFRA_POSTGRES_PASSWORD:-ai_infra_dev}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_infra -d ai_infra"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - backend
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - backend
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["sh", "-c", "alembic upgrade head && ai-infra-bootstrap && ai-infra-api"]
+    environment: *api-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${AI_INFRA_API_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - backend
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["ai-infra-worker"]
+    environment: *api-environment
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "from redis import Redis; from rq import Worker; connection=Redis.from_url('redis://redis:6379/0'); assert Worker.all(connection=connection)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - backend
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${AI_INFRA_WEB_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:3000/dashboard",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - frontend
+      - backend
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  frontend:
+  backend:
+    internal: true
