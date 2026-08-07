@@ -63,7 +63,7 @@ def compose_agent(
     arguments = ["docker", "compose", "--profile", "agent", "run", "--rm", "--no-deps"]
     if build:
         arguments.append("--build")
-    arguments.extend(("-e", "AI_INFRA_AGENT_TOKEN", "agent", command))
+    arguments.extend(("-e", "AI_INFRA_AGENT_TOKEN", "agent", "ai-infra-agent", command))
     result = subprocess.run(
         arguments,
         check=False,
