@@ -168,7 +168,7 @@ ai-infra-console/
 └── package.json             # npm workspace entry point
 ```
 
-Phase 5 passed its code-level, browser, and Linux Compose gates in [GitHub Actions run 31221477457](https://github.com/YishuaiGeng/ai-infra-console/actions/runs/31221477457). Phase 6 is tracked in the [development roadmap](./docs/DEVELOPMENT_ROADMAP.md) while its code-level plan is prepared.
+Phase 5 passed its code-level, browser, and Linux Compose gates in [GitHub Actions run 31221477457](https://github.com/YishuaiGeng/ai-infra-console/actions/runs/31221477457). Phase 6 is tracked in its [code-level deployment plan](./docs/phases/PHASE_6_DEPLOYMENT.md).
 
 ## Roadmap
 

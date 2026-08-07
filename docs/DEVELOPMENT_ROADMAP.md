@@ -476,6 +476,8 @@ System
 
 ## 10. Phase 6：Deployment
 
+代码级任务、技术决策、证据要求和阶段门详见 [`docs/phases/PHASE_6_DEPLOYMENT.md`](./phases/PHASE_6_DEPLOYMENT.md)。Phase 6 必须先完成该清单，再进入 Phase 7。
+
 ### 目标
 
 实现 vLLM Docker 部署与 Deployment 生命周期管理。
