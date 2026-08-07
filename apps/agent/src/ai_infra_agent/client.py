@@ -3,13 +3,19 @@ from typing import Literal
 from uuid import uuid4
 
 import httpx
-from pydantic import SecretStr
+from pydantic import SecretStr, TypeAdapter
 
 from ai_infra_agent.config import AgentSettings
 from ai_infra_agent.schemas import (
     AgentReportResponse,
     AgentSnapshot,
     DeleteTaskCommand,
+    DeploymentCommand,
+    DeploymentOperationProgressResponse,
+    DeploymentRuntimeExpectation,
+    DeploymentRuntimeObservation,
+    DeploymentRuntimeReport,
+    DeploymentTaskClaimResponse,
     DownloadProgressResponse,
     DownloadTaskCommand,
     ModelTaskClaimResponse,
@@ -126,6 +132,63 @@ class CentralClient:
                 "error_code": error_code,
                 "error_message": error_message,
             },
+        )
+
+    async def claim_deployment_task(self) -> DeploymentCommand | None:
+        response = await self._request("POST", "/api/v1/agent/deployment-tasks/claim")
+        return DeploymentTaskClaimResponse.model_validate(response.json()).task
+
+    async def renew_deployment_operation(
+        self,
+        command: DeploymentCommand,
+    ) -> DeploymentOperationProgressResponse:
+        response = await self._request(
+            "POST",
+            f"/api/v1/agent/deployment-operations/{command.operation_id}/progress",
+            json={
+                "lease_token": command.lease_token.get_secret_value(),
+                "generation": command.generation,
+            },
+        )
+        return DeploymentOperationProgressResponse.model_validate(response.json())
+
+    async def complete_deployment_operation(
+        self,
+        command: DeploymentCommand,
+        *,
+        outcome: Literal["completed", "failed"],
+        observed_state: Literal["running", "stopped", "missing", "failed"],
+        container_id: str | None = None,
+        error_code: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        await self._request(
+            "POST",
+            f"/api/v1/agent/deployment-operations/{command.operation_id}/complete",
+            json={
+                "lease_token": command.lease_token.get_secret_value(),
+                "generation": command.generation,
+                "outcome": outcome,
+                "observed_state": observed_state,
+                "container_id": container_id,
+                "error_code": error_code,
+                "error_message": error_message,
+            },
+        )
+
+    async def deployment_runtime_expectations(self) -> list[DeploymentRuntimeExpectation]:
+        response = await self._request("POST", "/api/v1/agent/deployment-runtimes/expected")
+        return TypeAdapter(list[DeploymentRuntimeExpectation]).validate_python(response.json())
+
+    async def report_deployment_runtimes(
+        self,
+        observations: list[DeploymentRuntimeObservation],
+    ) -> None:
+        report = DeploymentRuntimeReport(observations=observations)
+        await self._request(
+            "POST",
+            "/api/v1/agent/deployment-runtimes/report",
+            json=report.model_dump(mode="json"),
         )
 
     async def _report(self, path: str, snapshot: AgentSnapshot) -> AgentReportResponse:

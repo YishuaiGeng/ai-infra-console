@@ -130,6 +130,8 @@ class InfrastructureEvent(BaseModel):
         "server.offline",
         "model.inventory.updated",
         "model.download.updated",
+        "deployment.updated",
+        "deployment.logs.updated",
     ]
     server_id: uuid.UUID
     occurred_at: datetime

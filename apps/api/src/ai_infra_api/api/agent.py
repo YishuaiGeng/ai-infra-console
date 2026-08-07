@@ -7,6 +7,14 @@ from ai_infra_api.core.middleware import request_id_from
 from ai_infra_api.db.models import ServerAgent
 from ai_infra_api.dependencies import CurrentAgent, DatabaseSession
 from ai_infra_api.schemas.agent import AgentReportResponse, AgentSnapshot
+from ai_infra_api.schemas.deployments import (
+    DeploymentOperationProgressRequest,
+    DeploymentOperationProgressResponse,
+    DeploymentOperationTerminalRequest,
+    DeploymentRuntimeExpectation,
+    DeploymentRuntimeReport,
+    DeploymentTaskClaimResponse,
+)
 from ai_infra_api.schemas.model_tasks import (
     DeleteTerminalRequest,
     DownloadProgressRequest,
@@ -16,7 +24,17 @@ from ai_infra_api.schemas.model_tasks import (
 )
 from ai_infra_api.services.agent_telemetry import persist_agent_snapshot
 from ai_infra_api.services.audit import record_audit
+from ai_infra_api.services.deployments import (
+    DeploymentError,
+    apply_runtime_report,
+    claim_deployment_operation,
+    complete_deployment_operation,
+    list_runtime_expectations,
+    renew_deployment_operation,
+)
 from ai_infra_api.services.infrastructure_events import (
+    publish_deployment_logs_update,
+    publish_deployment_update,
     publish_model_download_update,
     publish_model_inventory_update,
     publish_server_update,
@@ -33,6 +51,11 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 
 
 def task_error(error: ModelTaskError) -> AppError:
+    status_code = 404 if error.code.endswith("_not_found") else 409
+    return AppError(status_code=status_code, code=error.code, message=error.message)
+
+
+def deployment_task_error(error: DeploymentError) -> AppError:
     status_code = 404 if error.code.endswith("_not_found") else 409
     return AppError(status_code=status_code, code=error.code, message=error.message)
 
@@ -205,3 +228,111 @@ async def finish_delete_task(
         ) from exc
     await session.commit()
     await publish_model_inventory_update(request.app.state.redis, result.server_id)
+
+
+@router.post("/deployment-tasks/claim", response_model=DeploymentTaskClaimResponse)
+async def claim_next_deployment_task(
+    request: Request,
+    session: DatabaseSession,
+    agent: CurrentAgent,
+) -> DeploymentTaskClaimResponse:
+    try:
+        task = await claim_deployment_operation(
+            session,
+            request.app.state.settings,
+            agent.server_id,
+        )
+    except DeploymentError as exc:
+        raise deployment_task_error(exc) from exc
+    await session.commit()
+    return DeploymentTaskClaimResponse(task=task)
+
+
+@router.post(
+    "/deployment-operations/{operation_id}/progress",
+    response_model=DeploymentOperationProgressResponse,
+)
+async def update_deployment_operation(
+    operation_id: uuid.UUID,
+    payload: DeploymentOperationProgressRequest,
+    request: Request,
+    session: DatabaseSession,
+    agent: CurrentAgent,
+) -> DeploymentOperationProgressResponse:
+    try:
+        result = await renew_deployment_operation(
+            session,
+            request.app.state.settings,
+            agent.server_id,
+            operation_id,
+            payload,
+        )
+    except DeploymentError as exc:
+        raise deployment_task_error(exc) from exc
+    await session.commit()
+    await publish_deployment_update(request.app.state.redis, agent.server_id)
+    return result
+
+
+@router.post("/deployment-operations/{operation_id}/complete", status_code=204)
+async def finish_deployment_operation(
+    operation_id: uuid.UUID,
+    payload: DeploymentOperationTerminalRequest,
+    request: Request,
+    session: DatabaseSession,
+    agent: CurrentAgent,
+) -> None:
+    try:
+        server_id, deployment_id, deleted = await complete_deployment_operation(
+            session,
+            agent.server_id,
+            operation_id,
+            payload,
+        )
+    except DeploymentError as exc:
+        raise deployment_task_error(exc) from exc
+    await record_audit(
+        session,
+        action="deployment.operation.completed",
+        success=payload.outcome == "completed",
+        request_id=request_id_from(request),
+        resource_type="deployment",
+        resource_id=str(deployment_id),
+        details={
+            "operation_id": str(operation_id),
+            "observed_state": payload.observed_state,
+            "deleted": deleted,
+        },
+    )
+    await publish_deployment_update(request.app.state.redis, server_id)
+
+
+@router.post("/deployment-runtimes/report", status_code=204)
+async def report_deployment_runtimes(
+    payload: DeploymentRuntimeReport,
+    request: Request,
+    session: DatabaseSession,
+    agent: CurrentAgent,
+) -> None:
+    changed, logs_changed = await apply_runtime_report(
+        session,
+        request.app.state.settings,
+        agent.server_id,
+        payload,
+    )
+    await session.commit()
+    if changed:
+        await publish_deployment_update(request.app.state.redis, agent.server_id)
+    if logs_changed:
+        await publish_deployment_logs_update(request.app.state.redis, agent.server_id)
+
+
+@router.post(
+    "/deployment-runtimes/expected",
+    response_model=list[DeploymentRuntimeExpectation],
+)
+async def expected_deployment_runtimes(
+    session: DatabaseSession,
+    agent: CurrentAgent,
+) -> list[DeploymentRuntimeExpectation]:
+    return await list_runtime_expectations(session, agent.server_id)

@@ -226,7 +226,7 @@ def _progress_tqdm(
     progress: DownloadProgress,
     cancelled: threading.Event,
 ) -> type[tqdm[Any]]:
-    class TaskTqdm(tqdm):
+    class TaskTqdm(tqdm):  # type: ignore[type-arg]
         def update(self, amount: float | None = 1) -> bool | None:
             if cancelled.is_set():
                 raise ModelTaskCancelled

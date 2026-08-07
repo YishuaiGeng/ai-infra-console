@@ -7,9 +7,11 @@ from ai_infra_agent import __version__
 from ai_infra_agent.client import CentralClient
 from ai_infra_agent.collectors import collect_snapshot
 from ai_infra_agent.config import get_settings
+from ai_infra_agent.deployment_runtime import create_deployment_runtime
+from ai_infra_agent.deployment_supervisor import DeploymentSupervisor
 from ai_infra_agent.logging import configure_logging
 from ai_infra_agent.model_tasks import ModelTaskExecutor
-from ai_infra_agent.runner import AgentRunner
+from ai_infra_agent.runner import AgentRunner, TaskSupervisor, TaskSupervisorGroup
 from ai_infra_agent.task_supervisor import ModelTaskSupervisor
 
 
@@ -45,11 +47,21 @@ async def async_command(command: str) -> None:
             ModelTaskExecutor(settings),
             progress_seconds=settings.model_task_progress_seconds,
         )
+        supervisors: list[TaskSupervisor] = [task_supervisor]
+        if settings.enable_deployments:
+            supervisors.append(
+                DeploymentSupervisor(
+                    client,
+                    create_deployment_runtime(settings),
+                    progress_seconds=settings.deployment_operation_progress_seconds,
+                    reconcile_seconds=settings.deployment_reconcile_seconds,
+                )
+            )
         runner = AgentRunner(
             client,
             collector,
             heartbeat_seconds=settings.heartbeat_seconds,
-            task_supervisor=task_supervisor,
+            task_supervisor=TaskSupervisorGroup(*supervisors),
         )
         await runner.run()
 

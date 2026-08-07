@@ -42,6 +42,7 @@ class RuntimeSnapshot(BaseModel):
     python: CollectorStatus
     docker: CollectorStatus
     ollama: CollectorStatus
+    deployment_enabled: bool = False
 
 
 class HostSnapshot(BaseModel):

@@ -62,6 +62,15 @@ class AgentSettings(BaseSettings):
         validation_alias=AliasChoices("AI_INFRA_AGENT_HTTPS_PROXY", "HTTPS_PROXY"),
     )
     model_download_fixture_source: Path | None = None
+    enable_deployments: bool = False
+    vllm_image: str = Field(default="vllm/vllm-openai:latest", min_length=1, max_length=255)
+    deployment_operation_progress_seconds: float = Field(default=5, ge=0.5, le=60)
+    deployment_reconcile_seconds: float = Field(default=5, ge=1, le=300)
+    deployment_stop_timeout_seconds: int = Field(default=20, ge=1, le=300)
+    deployment_health_timeout_seconds: float = Field(default=2, ge=0.1, le=30)
+    deployment_log_max_lines: int = Field(default=200, ge=10, le=1_000)
+    deployment_log_max_bytes: int = Field(default=262_144, ge=4_096, le=4_194_304)
+    deployment_runtime_fixture: bool = False
 
     @field_validator("allowed_model_directories")
     @classmethod
@@ -94,8 +103,18 @@ class AgentSettings(BaseSettings):
             raise ValueError("model provider endpoints must use HTTPS in production")
         if self.environment == "production" and self.model_download_fixture_source is not None:
             raise ValueError("fixture model downloads cannot be enabled in production")
+        if self.environment == "production" and self.deployment_runtime_fixture:
+            raise ValueError("fixture deployment runtime cannot be enabled in production")
         if self.enable_model_mutations and not self.allowed_model_directories:
             raise ValueError("model mutations require at least one allowed model directory")
+        if self.enable_deployments and not self.allowed_model_directories:
+            raise ValueError("deployments require at least one allowed model directory")
+        if (
+            self.environment == "production"
+            and self.enable_deployments
+            and "@sha256:" not in self.vllm_image
+        ):
+            raise ValueError("production deployments require an immutable vLLM image digest")
         if self.model_download_fixture_source is not None:
             if not self.model_download_fixture_source.is_absolute():
                 raise ValueError("fixture model source must be an absolute path")

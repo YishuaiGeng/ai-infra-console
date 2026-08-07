@@ -26,6 +26,22 @@ class TaskSupervisor(Protocol):
     async def wait(self) -> None: ...
 
 
+class TaskSupervisorGroup:
+    def __init__(self, *supervisors: TaskSupervisor) -> None:
+        self._supervisors = supervisors
+
+    async def tick(self) -> None:
+        for supervisor in self._supervisors:
+            await supervisor.tick()
+
+    def stop(self) -> None:
+        for supervisor in self._supervisors:
+            supervisor.stop()
+
+    async def wait(self) -> None:
+        await asyncio.gather(*(supervisor.wait() for supervisor in self._supervisors))
+
+
 async def wait_for_stop(delay: float, stop_event: asyncio.Event) -> None:
     try:
         await asyncio.wait_for(stop_event.wait(), timeout=delay)

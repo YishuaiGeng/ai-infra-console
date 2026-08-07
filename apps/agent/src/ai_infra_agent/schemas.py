@@ -42,6 +42,7 @@ class RuntimeSnapshot(BaseModel):
     python: CollectorStatus
     docker: CollectorStatus
     ollama: CollectorStatus
+    deployment_enabled: bool = False
 
 
 class HostSnapshot(BaseModel):
@@ -167,3 +168,85 @@ class ModelTaskClaimResponse(BaseModel):
 class DownloadProgressResponse(BaseModel):
     cancel_requested: bool
     lease_expires_at: datetime
+
+
+class DeploymentConfig(BaseModel):
+    tensor_parallel_size: int = Field(ge=1, le=8)
+    gpu_memory_utilization: float = Field(ge=0.1, le=1)
+    max_model_length: int = Field(ge=1_024, le=1_048_576)
+    data_type: Literal["auto", "float16", "bfloat16"]
+    trust_remote_code: bool
+    extra_arguments: list[str] = Field(default_factory=list, max_length=16)
+
+
+class DeploymentCreateCommand(BaseModel):
+    kind: Literal["create"]
+    operation_id: uuid.UUID
+    deployment_id: uuid.UUID
+    generation: int = Field(ge=1)
+    lease_token: SecretStr = Field(min_length=32, max_length=128)
+    container_name: str = Field(min_length=1, max_length=128)
+    image: str = Field(min_length=1, max_length=255)
+    root_path: str = Field(min_length=1, max_length=4096)
+    model_file_id: uuid.UUID
+    source: str = Field(min_length=1, max_length=32)
+    source_id: str = Field(min_length=1, max_length=255)
+    model_path: str = Field(min_length=1, max_length=4096)
+    port: int = Field(ge=1024, le=65535)
+    gpu_indexes: list[int] = Field(min_length=1, max_length=8)
+    gpu_uuids: list[str] = Field(min_length=1, max_length=8)
+    config: DeploymentConfig
+
+
+class DeploymentLifecycleCommand(BaseModel):
+    kind: Literal["start", "stop", "restart", "delete"]
+    operation_id: uuid.UUID
+    deployment_id: uuid.UUID
+    generation: int = Field(ge=1)
+    lease_token: SecretStr = Field(min_length=32, max_length=128)
+    container_name: str = Field(min_length=1, max_length=128)
+
+
+DeploymentCommand = Annotated[
+    DeploymentCreateCommand | DeploymentLifecycleCommand,
+    Field(discriminator="kind"),
+]
+
+
+class DeploymentTaskClaimResponse(BaseModel):
+    task: DeploymentCommand | None = None
+
+
+class DeploymentOperationProgressResponse(BaseModel):
+    lease_expires_at: datetime
+
+
+class DeploymentLogReport(BaseModel):
+    sequence: int = Field(ge=1)
+    timestamp: datetime
+    stream: Literal["stdout", "stderr"] = "stdout"
+    message: str = Field(min_length=1, max_length=4096)
+
+
+class DeploymentRuntimeObservation(BaseModel):
+    deployment_id: uuid.UUID
+    generation: int = Field(ge=1)
+    container_id: str | None = Field(default=None, max_length=128)
+    state: Literal["running", "stopped", "missing", "failed"]
+    exit_code: int | None = None
+    health_status: Literal["healthy", "degraded", "unhealthy", "unknown"] = "unknown"
+    health_latency_ms: float | None = Field(default=None, ge=0)
+    checked_at: datetime
+    logs: list[DeploymentLogReport] = Field(default_factory=list, max_length=200)
+
+
+class DeploymentRuntimeReport(BaseModel):
+    observations: list[DeploymentRuntimeObservation] = Field(default_factory=list, max_length=100)
+
+
+class DeploymentRuntimeExpectation(BaseModel):
+    deployment_id: uuid.UUID
+    generation: int = Field(ge=1)
+    container_name: str = Field(min_length=1, max_length=128)
+    port: int = Field(ge=1024, le=65535)
+    desired_state: Literal["running", "stopped"]

@@ -25,6 +25,8 @@ async def _publish_update(
         "server.offline",
         "model.inventory.updated",
         "model.download.updated",
+        "deployment.updated",
+        "deployment.logs.updated",
     ],
 ) -> None:
     event = InfrastructureEvent(
@@ -53,6 +55,14 @@ async def publish_model_inventory_update(redis: Redis, server_id: uuid.UUID) -> 
 
 async def publish_model_download_update(redis: Redis, server_id: uuid.UUID) -> None:
     await _publish_update(redis, server_id, "model.download.updated")
+
+
+async def publish_deployment_update(redis: Redis, server_id: uuid.UUID) -> None:
+    await _publish_update(redis, server_id, "deployment.updated")
+
+
+async def publish_deployment_logs_update(redis: Redis, server_id: uuid.UUID) -> None:
+    await _publish_update(redis, server_id, "deployment.logs.updated")
 
 
 def encode_sse(event: InfrastructureEvent) -> str:
@@ -112,4 +122,4 @@ async def stream_infrastructure_events(
     finally:
         if subscribed:
             await pubsub.unsubscribe(INFRASTRUCTURE_EVENT_CHANNEL)
-        await pubsub.aclose()
+        await pubsub.aclose()  # type: ignore[no-untyped-call]

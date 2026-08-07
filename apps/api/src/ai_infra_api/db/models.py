@@ -291,7 +291,11 @@ class ModelDeleteTask(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class Deployment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "deployments"
-    __table_args__ = (UniqueConstraint("server_id", "port"),)
+    __table_args__ = (
+        UniqueConstraint("server_id", "port"),
+        CheckConstraint("port >= 1024 AND port <= 65535", name="port_valid"),
+        CheckConstraint("generation >= 1", name="generation_positive"),
+    )
 
     name: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     model_file_id: Mapped[uuid.UUID] = mapped_column(
@@ -300,14 +304,61 @@ class Deployment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     server_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("servers.id", ondelete="CASCADE"), index=True
     )
+    requested_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     backend: Mapped[str] = mapped_column(String(32))
+    selection_mode: Mapped[str] = mapped_column(String(16), default="automatic")
+    desired_state: Mapped[str] = mapped_column(String(32), default="running", index=True)
     status: Mapped[str] = mapped_column(String(32), default="stopped", index=True)
+    generation: Mapped[int] = mapped_column(Integer, default=1)
     port: Mapped[int] = mapped_column(Integer)
     endpoint: Mapped[str | None] = mapped_column(String(512))
     container_id: Mapped[str | None] = mapped_column(String(128))
     config: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    health_status: Mapped[str] = mapped_column(String(32), default="unknown", index=True)
+    health_latency_ms: Mapped[float | None] = mapped_column(Float)
+    last_health_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    error_message: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DeploymentOperation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "deployment_operations"
+    __table_args__ = (
+        CheckConstraint("attempt_count >= 0", name="attempt_count_non_negative"),
+        CheckConstraint("generation >= 1", name="generation_positive"),
+        Index(
+            "ix_deployment_operations_server_status_created",
+            "server_id",
+            "status",
+            "created_at",
+        ),
+    )
+
+    deployment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("deployments.id", ondelete="CASCADE"), index=True
+    )
+    server_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("servers.id", ondelete="CASCADE"), index=True
+    )
+    requested_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    action: Mapped[str] = mapped_column(String(16), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
+    generation: Mapped[int] = mapped_column(Integer)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    lease_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    request_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    error_message: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class DeploymentGPU(Base):
@@ -321,6 +372,25 @@ class DeploymentGPU(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class DeploymentLog(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "deployment_logs"
+    __table_args__ = (
+        UniqueConstraint("deployment_id", "sequence"),
+        Index("ix_deployment_logs_deployment_sequence", "deployment_id", "sequence"),
+    )
+
+    deployment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("deployments.id", ondelete="CASCADE"), index=True
+    )
+    sequence: Mapped[int] = mapped_column(BigInteger)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    stream: Mapped[str] = mapped_column(String(16), default="stdout")
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
     )
 
 

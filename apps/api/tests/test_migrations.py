@@ -22,6 +22,8 @@ REQUIRED_TABLES = {
     "model_delete_tasks",
     "deployments",
     "deployment_gpus",
+    "deployment_operations",
+    "deployment_logs",
     "api_endpoints",
     "notifications",
     "system_settings",
@@ -64,6 +66,23 @@ def test_initial_migration_upgrade_downgrade_and_reupgrade(tmp_path: Path) -> No
         "lease_token_hash",
         "error_code",
     } <= column_names(database_path, "model_download_tasks")
+    assert {
+        "requested_by_user_id",
+        "selection_mode",
+        "desired_state",
+        "generation",
+        "health_status",
+        "last_reconciled_at",
+        "error_code",
+    } <= column_names(database_path, "deployments")
+    assert {
+        "deployment_id",
+        "action",
+        "status",
+        "generation",
+        "lease_token_hash",
+        "request_id",
+    } <= column_names(database_path, "deployment_operations")
 
     command.downgrade(config, "base")
     assert not (REQUIRED_TABLES & table_names(database_path))

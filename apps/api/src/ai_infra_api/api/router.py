@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from ai_infra_api.api.agent import router as agent_router
 from ai_infra_api.api.auth import router as auth_router
+from ai_infra_api.api.deployments import router as deployments_router
 from ai_infra_api.api.downloads import router as downloads_router
 from ai_infra_api.api.infrastructure import router as infrastructure_router
 from ai_infra_api.api.models import router as models_router
@@ -16,6 +17,7 @@ api_router.include_router(agent_router)
 api_router.include_router(infrastructure_router)
 api_router.include_router(models_router)
 api_router.include_router(downloads_router)
+api_router.include_router(deployments_router)
 
 
 @api_router.get("")

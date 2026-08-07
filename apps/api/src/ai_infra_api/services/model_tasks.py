@@ -4,7 +4,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath, PureWindowsPath
-from typing import Literal
+from typing import Literal, cast
 
 from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -119,10 +119,10 @@ def download_response(task: ModelDownloadTask, server: Server) -> DownloadTaskRe
         server=_server_response(server),
         directory_id=task.directory_id,
         target_path=task.target_path,
-        source=task.source,  # type: ignore[arg-type]
+        source=task.source,
         source_id=task.source_id,
         revision=task.revision,
-        status=task.status,  # type: ignore[arg-type]
+        status=task.status,
         downloaded_size=task.downloaded_size,
         total_size=task.total_size,
         speed_bytes_per_second=task.speed_bytes_per_second,
@@ -147,7 +147,7 @@ def delete_response(task: ModelDeleteTask, server: Server) -> ModelDeleteTaskRes
         source=task.source,
         source_id=task.source_id,
         target_path=task.target_path,
-        status=task.status,  # type: ignore[arg-type]
+        status=task.status,
         attempt_count=task.attempt_count,
         error_code=task.error_code,
         error_message=task.error_message,
@@ -471,21 +471,24 @@ async def _candidate_download(
     server_id: uuid.UUID,
     now: datetime,
 ) -> ModelDownloadTask | None:
-    return await session.scalar(
-        select(ModelDownloadTask)
-        .where(
-            ModelDownloadTask.server_id == server_id,
-            or_(
-                ModelDownloadTask.status == "queued",
-                (
-                    ModelDownloadTask.status.in_(("downloading", "cancelling"))
-                    & (ModelDownloadTask.lease_expires_at < now)
+    return cast(
+        ModelDownloadTask | None,
+        await session.scalar(
+            select(ModelDownloadTask)
+            .where(
+                ModelDownloadTask.server_id == server_id,
+                or_(
+                    ModelDownloadTask.status == "queued",
+                    (
+                        ModelDownloadTask.status.in_(("downloading", "cancelling"))
+                        & (ModelDownloadTask.lease_expires_at < now)
+                    ),
                 ),
-            ),
-        )
-        .order_by(ModelDownloadTask.created_at)
-        .with_for_update(skip_locked=True)
-        .limit(1)
+            )
+            .order_by(ModelDownloadTask.created_at)
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        ),
     )
 
 
@@ -494,18 +497,24 @@ async def _candidate_delete(
     server_id: uuid.UUID,
     now: datetime,
 ) -> ModelDeleteTask | None:
-    return await session.scalar(
-        select(ModelDeleteTask)
-        .where(
-            ModelDeleteTask.server_id == server_id,
-            or_(
-                ModelDeleteTask.status == "queued",
-                ((ModelDeleteTask.status == "deleting") & (ModelDeleteTask.lease_expires_at < now)),
-            ),
-        )
-        .order_by(ModelDeleteTask.created_at)
-        .with_for_update(skip_locked=True)
-        .limit(1)
+    return cast(
+        ModelDeleteTask | None,
+        await session.scalar(
+            select(ModelDeleteTask)
+            .where(
+                ModelDeleteTask.server_id == server_id,
+                or_(
+                    ModelDeleteTask.status == "queued",
+                    (
+                        (ModelDeleteTask.status == "deleting")
+                        & (ModelDeleteTask.lease_expires_at < now)
+                    ),
+                ),
+            )
+            .order_by(ModelDeleteTask.created_at)
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        ),
     )
 
 
@@ -577,7 +586,7 @@ async def claim_model_task(
             task_id=task.id,
             lease_token=lease_token,
             root_path=directory.path,
-            provider=task.source,  # type: ignore[arg-type]
+            provider=task.source,
             source_id=task.source_id,
             revision=task.revision,
             target_path=task.target_path,

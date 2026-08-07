@@ -12,6 +12,7 @@ from ai_infra_agent.schemas import AgentSnapshot
 def collect_snapshot(settings: AgentSettings | None = None) -> AgentSnapshot:
     resolved_settings = settings or get_settings()
     runtimes = collect_runtime_snapshot()
+    runtimes.deployment_enabled = resolved_settings.enable_deployments
     host = collect_host_snapshot(runtimes)
     gpus, gpu_collector = collect_gpu_snapshot()
     model_inventory = collect_model_inventory(

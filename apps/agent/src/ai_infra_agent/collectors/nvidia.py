@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 import psutil
-import pynvml  # type: ignore[import-untyped]
+import pynvml
 
 from ai_infra_agent.schemas import CollectorStatus, GPUProcessSnapshot, GPUSnapshot
 
