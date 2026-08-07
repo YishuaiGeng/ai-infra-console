@@ -95,6 +95,10 @@ jobs:
             tail -n 50 compose-smoke.log | while IFS= read -r line; do
               echo "::error::$line"
             done
+            failure_line=$(grep -F '[compose-smoke] failed:' compose-smoke.log | tail -n 1)
+            if [ -n "$failure_line" ]; then
+              echo "::error title=Compose smoke stage::$failure_line"
+            fi
           fi
           exit "$status"
       - name: Show service logs on failure

@@ -21,6 +21,26 @@ def compose_exec(*arguments: str) -> str:
     return result.stdout.strip()
 
 
+def compose_run(*arguments: str) -> str:
+    result = subprocess.run(
+        ["docker", "compose", "run", "--rm", "--no-deps", "api", *arguments],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def compose_command(*arguments: str) -> str:
+    result = subprocess.run(
+        ["docker", "compose", *arguments],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
 def run_check(name: str, check: Callable[[], T]) -> T:
     print(f"[compose-smoke] starting: {name}", flush=True)
     started_at = time.monotonic()
@@ -145,9 +165,25 @@ def main() -> None:
         raise RuntimeError("AI_INFRA_BOOTSTRAP_ADMIN_PASSWORD is required for Compose smoke")
 
     run_check("initial readiness", lambda: wait_for_ready(base_url))
-    run_check("migration downgrade", lambda: compose_exec("alembic", "downgrade", "base"))
-    run_check("migration upgrade", lambda: compose_exec("alembic", "upgrade", "head"))
-    run_check("administrator bootstrap", lambda: compose_exec("ai-infra-bootstrap"))
+    run_check("stop API clients", lambda: compose_command("stop", "web", "api"))
+    run_check(
+        "migration downgrade", lambda: compose_run("alembic", "downgrade", "base")
+    )
+    run_check("migration upgrade", lambda: compose_run("alembic", "upgrade", "head"))
+    run_check("administrator bootstrap", lambda: compose_run("ai-infra-bootstrap"))
+    run_check(
+        "restart API clients",
+        lambda: compose_command(
+            "up",
+            "-d",
+            "--no-build",
+            "--wait",
+            "--wait-timeout",
+            "90",
+            "api",
+            "web",
+        ),
+    )
     readiness = run_check("post-migration readiness", lambda: wait_for_ready(base_url))
 
     login = run_check(
