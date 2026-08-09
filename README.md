@@ -1,5 +1,3 @@
-# AI Infra Console
-
 <p align="center">
   <img src="apps/web/public/brand/logo.png" alt="AI Infra Console" width="560" />
 </p>
