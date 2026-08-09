@@ -15,22 +15,17 @@ export default async function LoginPage({
   return (
     <main className="grid min-h-screen place-items-center bg-muted/25 px-4 py-10">
       <section className="w-full max-w-sm" aria-labelledby="login-title">
-        <div className="mb-8 flex items-center gap-3">
-          <div className="grid size-10 place-items-center overflow-hidden rounded-md border bg-black">
-            <Image
-              src="/brand/logo-mark.png"
-              alt=""
-              width={40}
-              height={40}
-              className="size-10 object-cover"
-              priority
-            />
-          </div>
-          <div>
-            <div className="text-base font-semibold">AI Infra Console</div>
-            <div className="font-mono text-xs text-muted-foreground">
-              Central control plane
-            </div>
+        <div className="mb-8">
+          <Image
+            src="/brand/logo.png"
+            alt="AI Infra Console"
+            width={300}
+            height={82}
+            className="h-auto w-full rounded-sm object-contain"
+            priority
+          />
+          <div className="mt-3 text-center font-mono text-xs text-muted-foreground">
+            Central control plane
           </div>
         </div>
 

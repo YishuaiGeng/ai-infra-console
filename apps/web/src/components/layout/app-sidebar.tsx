@@ -26,34 +26,35 @@ function NavContent({
 
   return (
     <>
-      <div className="flex h-14 shrink-0 items-center border-b px-3">
+      <div className="flex h-16 shrink-0 items-center border-b px-3">
         <Link
           href="/dashboard"
           className={cn(
-            "flex min-w-0 items-center gap-2.5 overflow-hidden",
+            "flex min-w-0 items-center overflow-hidden",
             collapsed && "justify-center",
           )}
           onClick={onNavigate}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-black">
+          {collapsed ? (
+            <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-black">
+              <Image
+                src="/brand/logo-mark.png"
+                alt="AI Infra Console"
+                width={36}
+                height={36}
+                className="size-9 object-cover"
+                priority
+              />
+            </span>
+          ) : (
             <Image
-              src="/brand/logo-mark.png"
-              alt={collapsed ? "AI Infra Console" : ""}
-              width={32}
-              height={32}
-              className="size-8 object-cover"
+              src="/brand/logo.png"
+              alt="AI Infra Console"
+              width={180}
+              height={49}
+              className="h-12 w-[180px] rounded-sm object-contain"
               priority
             />
-          </span>
-          {!collapsed && (
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold">
-                AI Infra Console
-              </span>
-              <span className="block truncate font-mono text-[10px] text-muted-foreground">
-                CONTROL PLANE
-              </span>
-            </span>
           )}
         </Link>
       </div>
@@ -144,7 +145,7 @@ export function AppSidebar() {
             <Button
               variant="outline"
               size="icon-xs"
-              className="absolute -right-3 top-[70px] rounded-full bg-background"
+              className="absolute -right-3 top-[76px] rounded-full bg-background"
               onClick={toggleSidebar}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             />
