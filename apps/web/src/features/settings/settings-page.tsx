@@ -1,14 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { systemSettings } from "@/mocks/data";
+import type { SystemSettings } from "@/types";
+import { useSystemSettings, useUpdateSystemSettings } from "@/hooks/use-settings";
 import { cn } from "@/lib/utils";
 import { PageContainer } from "@/components/layout/page-container";
+import { ErrorState } from "@/components/shared/error-state";
+import { PageLoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionPanel } from "@/components/shared/section-panel";
 import { Button } from "@/components/ui/button";
@@ -20,16 +24,33 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const settingsSchema = z.object({
   consoleName: z.string().min(2),
   timezone: z.string().min(2),
+  language: z.string().min(2),
   heartbeatInterval: z.number().int().min(5).max(300),
   offlineThreshold: z.number().int().min(10).max(900),
-  metricsRetentionDays: z.number().int().min(1).max(365),
+  metricsRetentionDays: z.number().int().min(1).max(3650),
   defaultModelDirectory: z.string().startsWith("/"),
+  defaultBackend: z.enum(["vLLM", "Ollama"]),
   defaultPort: z.number().int().min(1024).max(65535),
   defaultGpuMemoryUtilization: z.number().min(0.1).max(1),
   requireDeleteConfirmation: z.boolean(),
   auditLogRetentionDays: z.number().int().min(1).max(3650),
 });
 type SettingsValues = z.infer<typeof settingsSchema>;
+
+const fallbackSettings: SystemSettings = {
+  consoleName: "AI Infra Console",
+  timezone: "Asia/Shanghai",
+  language: "English",
+  heartbeatInterval: 10,
+  offlineThreshold: 30,
+  metricsRetentionDays: 14,
+  defaultModelDirectory: "/data/models",
+  defaultBackend: "vLLM",
+  defaultPort: 8000,
+  defaultGpuMemoryUtilization: 0.9,
+  requireDeleteConfirmation: true,
+  auditLogRetentionDays: 90,
+};
 
 function Field({ label, id, children, hint }: { label: string; id: string; children: React.ReactNode; hint?: string }) {
   return (
@@ -42,15 +63,38 @@ function Field({ label, id, children, hint }: { label: string; id: string; child
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { register, handleSubmit, control, setValue } = useForm<SettingsValues>({
+  const settingsQuery = useSystemSettings();
+  const updateSettings = useUpdateSystemSettings();
+  const { register, handleSubmit, control, setValue, reset } = useForm<SettingsValues>({
     resolver: zodResolver(settingsSchema),
-    defaultValues: systemSettings,
+    defaultValues: fallbackSettings,
   });
+  useEffect(() => {
+    if (settingsQuery.data) reset(settingsQuery.data);
+  }, [reset, settingsQuery.data]);
   const requireDeleteConfirmation = useWatch({
     control,
     name: "requireDeleteConfirmation",
   });
-  const save = () => toast.success("Settings saved");
+  const defaultBackend = useWatch({ control, name: "defaultBackend" });
+  const save = async (values: SettingsValues) => {
+    await updateSettings.mutateAsync(values);
+    toast.success("Settings saved");
+  };
+
+  if (settingsQuery.isLoading) return <PageLoadingSkeleton />;
+  if (settingsQuery.isError) {
+    return (
+      <PageContainer>
+        <PageHeader title="Settings" description="Console defaults for monitoring, model storage, deployment, and security." />
+        <ErrorState
+          title="Settings unavailable"
+          message={settingsQuery.error.message}
+          onRetry={() => void settingsQuery.refetch()}
+        />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
@@ -107,7 +151,7 @@ export function SettingsPage() {
             <SectionPanel title="Deployment defaults" contentClassName="px-4">
               <Field label="Default port" id="default-port"><Input id="default-port" type="number" {...register("defaultPort", { valueAsNumber: true })} /></Field>
               <Field label="GPU memory utilization" id="default-gpu-memory"><Input id="default-gpu-memory" type="number" min="0.1" max="1" step="0.05" {...register("defaultGpuMemoryUtilization", { valueAsNumber: true })} /></Field>
-              <Field label="Default backend" id="default-backend"><Input id="default-backend" value={systemSettings.defaultBackend} readOnly /></Field>
+              <Field label="Default backend" id="default-backend"><Input id="default-backend" value={defaultBackend} readOnly {...register("defaultBackend")} /></Field>
             </SectionPanel>
           </TabsContent>
           <TabsContent value="security" className="mt-4">
@@ -120,7 +164,11 @@ export function SettingsPage() {
             </SectionPanel>
           </TabsContent>
         </Tabs>
-        <div className="mt-4 flex justify-end"><Button type="submit">Save settings</Button></div>
+        <div className="mt-4 flex justify-end">
+          <Button type="submit" disabled={updateSettings.isPending}>
+            {updateSettings.isPending ? "Saving..." : "Save settings"}
+          </Button>
+        </div>
       </form>
     </PageContainer>
   );

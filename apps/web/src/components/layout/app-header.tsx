@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Bell,
-  CheckCircle2,
   ChevronRight,
   Menu,
   Monitor,
@@ -23,6 +22,8 @@ import {
   useServers,
   useSession,
 } from "@/hooks/use-infrastructure";
+import { useNotifications } from "@/hooks/use-monitoring";
+import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -132,7 +133,9 @@ export function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const summaryQuery = useInfrastructureSummary();
   const sessionQuery = useSession();
+  const notificationsQuery = useNotifications();
   const summary = summaryQuery.data;
+  const notifications = notificationsQuery.data;
 
   const signOut = async () => {
     await fetch("/api/session", { method: "DELETE" });
@@ -189,25 +192,57 @@ export function AppHeader() {
               }
             >
               <Bell />
-              <span className="absolute right-1 top-1 size-1.5 rounded-full bg-red-500" />
+              {(notifications?.unreadCount ?? 0) > 0 && (
+                <span className="absolute right-0.5 top-0.5 flex min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-semibold text-white">
+                  {Math.min(notifications?.unreadCount ?? 0, 9)}
+                </span>
+              )}
             </TooltipTrigger>
             <TooltipContent>Notifications</TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="end" className="w-80">
             <DropdownMenuGroup>
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                Notifications
+                <span className="ml-2 font-mono text-[11px] font-normal text-muted-foreground">
+                  {notifications?.unreadCount ?? 0} unread
+                </span>
+              </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <div className="p-2 text-sm">
-              <div className="mb-1 flex items-center gap-2 font-medium">
-                <CheckCircle2 className="size-4 text-emerald-500" />
-                Infrastructure summary
+            {notificationsQuery.isLoading ? (
+              <div className="p-3 text-xs text-muted-foreground">Loading notifications...</div>
+            ) : notifications?.items.length ? (
+              <div className="max-h-96 overflow-y-auto p-1">
+                {notifications.items.map((item) => (
+                  <div key={item.id} className="rounded-sm p-2 text-sm hover:bg-muted/60">
+                    <div className="mb-1 flex items-center gap-2 font-medium">
+                      <span
+                        className={
+                          item.level === "critical"
+                            ? "size-2 rounded-full bg-red-500"
+                            : item.level === "warning"
+                              ? "size-2 rounded-full bg-yellow-500"
+                              : "size-2 rounded-full bg-blue-500"
+                        }
+                      />
+                      <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                    </div>
+                    <p className="pl-4 text-xs leading-5 text-muted-foreground">
+                      {item.message}
+                    </p>
+                    <div className="mt-1 pl-4 font-mono text-[10px] text-muted-foreground">
+                      {formatDateTime(item.createdAt)}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="pl-6 text-xs leading-5 text-muted-foreground">
+            ) : (
+              <div className="p-3 text-xs text-muted-foreground">
                 {summary?.online_server_count ?? 0} servers online and{" "}
                 {summary?.available_gpu_count ?? 0} GPUs available.
-              </p>
-            </div>
+              </div>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>

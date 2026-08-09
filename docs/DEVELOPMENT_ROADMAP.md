@@ -14,7 +14,7 @@ This roadmap summarizes the staged implementation plan. The source product requi
 | 5 | Model Download | Complete | Provider search, download/cancel/retry/delete workflows through Agent tasks |
 | 6 | Deployment | Complete | vLLM Docker placement, lifecycle, health, bounded logs, reconciliation |
 | 7 | API Endpoints | In progress | Real endpoint listing and Central-mediated chat-completions test are implemented |
-| 8 | Monitoring Polish | In progress | Real Activity audit view is implemented; historical metrics and notifications remain |
+| 8 | Monitoring Polish | Complete | Real Activity audit view, metric history, derived notifications, and retention cleanup are implemented |
 | 9 | UI Polish | Planned | Accessibility, responsive polish, visual consistency, final docs cleanup |
 
 ## Product Workflow
@@ -62,12 +62,6 @@ Phase 7:
 
 - Add more endpoint-level health and model metadata if needed by external clients.
 - Expand browser verification for live endpoint test failures, long responses, and unavailable runtimes.
-
-Phase 8:
-
-- Add historical GPU/server metrics persistence and chart views without making Dashboard chart-heavy.
-- Add notifications for critical events such as offline servers, high GPU temperature, low disk space, download failure, and deployment failure.
-- Define metrics retention settings and cleanup jobs.
 
 Phase 9:
 

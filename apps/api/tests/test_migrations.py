@@ -16,6 +16,7 @@ REQUIRED_TABLES = {
     "gpu_metrics",
     "gpu_processes",
     "server_metrics",
+    "server_metric_samples",
     "models",
     "model_files",
     "model_download_tasks",

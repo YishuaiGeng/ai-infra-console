@@ -67,7 +67,12 @@ async def save_report(
     agent: ServerAgent,
 ) -> tuple[AgentReportResponse, bool]:
     try:
-        persistence = await persist_agent_snapshot(session, agent, snapshot)
+        persistence = await persist_agent_snapshot(
+            session,
+            agent,
+            snapshot,
+            metrics_retention_days=request.app.state.settings.metrics_retention_days,
+        )
     except ValueError as exc:
         await record_audit(
             session,

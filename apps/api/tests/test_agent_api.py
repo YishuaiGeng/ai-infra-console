@@ -15,6 +15,7 @@ from ai_infra_api.db.models import (
     Server,
     ServerAgent,
     ServerMetric,
+    ServerMetricSample,
     User,
     UserRole,
 )
@@ -141,6 +142,9 @@ async def test_registration_heartbeat_and_plaintext_token_absence(
         metric = await session.scalar(
             select(ServerMetric).where(ServerMetric.server_id == server_id)
         )
+        sample = await session.scalar(
+            select(ServerMetricSample).where(ServerMetricSample.server_id == server_id)
+        )
         gpu = await session.scalar(select(GPU).where(GPU.server_id == server_id))
         process = await session.scalar(select(GPUProcess))
         audit = await session.scalar(
@@ -151,6 +155,7 @@ async def test_registration_heartbeat_and_plaintext_token_absence(
         assert agent is not None and agent.token_hash not in {None, token}
         assert token not in repr(agent.__dict__)
         assert metric is not None and metric.memory_used == 32_000
+        assert sample is not None and sample.memory_used == 32_000
         assert gpu is not None and gpu.uuid == "GPU-test-0"
         assert process is not None and process.pid == 1200
         assert audit is not None and token not in repr(audit.details)
@@ -173,8 +178,48 @@ async def test_repeated_heartbeat_replaces_processes_and_keeps_gpu_identity(
     async with app.state.database.session_factory() as session:
         assert await session.scalar(select(func.count()).select_from(GPU)) == 1
         assert await session.scalar(select(func.count()).select_from(GPUMetric)) == 2
+        assert await session.scalar(select(func.count()).select_from(ServerMetricSample)) == 2
         processes = list(await session.scalars(select(GPUProcess)))
         assert [item.pid for item in processes] == [2200]
+
+
+async def test_monitoring_history_and_notifications(client: AsyncClient, app: FastAPI) -> None:
+    server_id, token, admin_headers = await create_registration(client, app)
+    first_payload = snapshot_payload()
+    first_payload["gpus"][0]["temperature"] = 86
+    first_payload["gpus"][0]["memory_used"] = 23_500
+    first_payload["host"]["disks"][0]["used"] = 950_000
+    await client.post("/api/v1/agent/register", headers=agent_headers(token), json=first_payload)
+    second_payload = snapshot_payload(process_pid=2200)
+    second_payload["host"]["cpu"]["utilization"] = 55
+    second_payload["host"]["disks"][0]["used"] = 950_000
+    second_payload["gpus"][0]["temperature"] = 88
+    second_payload["gpus"][0]["memory_used"] = 23_800
+    await client.post(
+        "/api/v1/agent/heartbeat",
+        headers=agent_headers(token),
+        json=second_payload,
+    )
+    async with app.state.database.session_factory() as session:
+        server = await session.get(Server, server_id)
+        assert server is not None
+        server.last_seen = datetime.now(UTC) - timedelta(seconds=31)
+        server.status = "offline"
+        await session.commit()
+
+    history = await client.get("/api/v1/metrics/history?window_hours=24", headers=admin_headers)
+    notifications = await client.get("/api/v1/notifications", headers=admin_headers)
+
+    assert history.status_code == 200
+    assert len(history.json()["server_points"]) == 2
+    assert len(history.json()["gpu_points"]) == 2
+    assert history.json()["server_points"][-1]["cpu_utilization"] == 55
+    assert notifications.status_code == 200
+    titles = {item["title"] for item in notifications.json()["items"]}
+    assert "test-server is offline" in titles
+    assert "test-server disk space is low" in titles
+    assert any("temperature is high" in title for title in titles)
+    assert any("VRAM is nearly full" in title for title in titles)
 
 
 async def test_gpu_replacement_reuses_slot_and_deduplicates_processes(

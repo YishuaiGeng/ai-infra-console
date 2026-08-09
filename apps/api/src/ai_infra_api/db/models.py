@@ -162,6 +162,27 @@ class ServerMetric(UUIDPrimaryKeyMixin, Base):
     runtime_info: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
+class ServerMetricSample(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "server_metric_samples"
+    __table_args__ = (
+        Index("ix_server_metric_samples_server_collected", "server_id", "collected_at"),
+    )
+
+    server_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("servers.id", ondelete="CASCADE"), index=True
+    )
+    collected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    cpu_utilization: Mapped[float | None] = mapped_column(Float)
+    memory_used: Mapped[int | None] = mapped_column(BigInteger)
+    memory_total: Mapped[int | None] = mapped_column(BigInteger)
+    disk_used: Mapped[int | None] = mapped_column(BigInteger)
+    disk_total: Mapped[int | None] = mapped_column(BigInteger)
+    network_bytes_sent: Mapped[int | None] = mapped_column(BigInteger)
+    network_bytes_received: Mapped[int | None] = mapped_column(BigInteger)
+
+
 class GPUProcess(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "gpu_processes"
     __table_args__ = (UniqueConstraint("gpu_id", "pid"),)

@@ -22,7 +22,7 @@ AI Infra Console is a lightweight control plane for personal AI infrastructure: 
 | 5 | Hugging Face and ModelScope downloads | Complete |
 | 6 | Docker and vLLM deployment lifecycle | Complete |
 | 7 | OpenAI-compatible endpoint listing and test dialog | In progress |
-| 8 | Activity, metrics history, and notifications | In progress |
+| 8 | Activity, metrics history, and notifications | Complete |
 | 9 | Accessibility and UI polish | Planned |
 
 Recent Phase 7/8 progress:
@@ -30,6 +30,8 @@ Recent Phase 7/8 progress:
 - `/apis` now lists real running deployment endpoints instead of mock endpoint fixtures.
 - The API test dialog sends a bounded `/v1/chat/completions` request through Central for an existing deployment endpoint; the browser cannot submit an arbitrary URL.
 - `/activity` now reads real audit logs from Central and filters sensitive detail keys before displaying them.
+- Dashboard now includes a compact 24-hour resource trend panel backed by Agent metric samples.
+- The header notification menu now reads derived and stored monitoring notifications from Central.
 
 ## Core Workflow
 
@@ -54,6 +56,8 @@ View servers and GPUs
 - Model inventory for Safetensors, PyTorch bin, GGUF, Hugging Face cache layouts, and local Ollama discovery.
 - Provider search and download task orchestration for Hugging Face and ModelScope.
 - Safe vLLM deployment lifecycle: create, start, stop, restart, retry, delete, health, bounded logs, deterministic ports, and exact GPU placement.
+- Monitoring history for server CPU/RAM/disk/network samples and GPU utilization, VRAM, temperature, and power samples with retention cleanup.
+- Derived notifications for offline servers, high GPU temperature, and near-full GPU memory, plus stored notification records.
 - Web BFF using Secure HttpOnly session cookies so API bearer tokens do not enter browser storage.
 - Security guardrails against generic remote shell, arbitrary Docker/image control, unsafe model paths, and backup-host mutation.
 

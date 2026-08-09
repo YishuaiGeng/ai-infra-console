@@ -377,6 +377,52 @@ export interface ActivityLog {
   detail: string;
 }
 
+export interface ServerMetricPoint {
+  serverId: string;
+  serverName: string;
+  collectedAt: string;
+  cpuUtilization: number | null;
+  memoryUsed: number | null;
+  memoryTotal: number | null;
+  diskUsed: number | null;
+  diskTotal: number | null;
+}
+
+export interface GpuMetricPoint {
+  gpuId: string;
+  serverId: string;
+  serverName: string;
+  gpuIndex: number;
+  gpuName: string;
+  collectedAt: string;
+  utilization: number | null;
+  memoryUsed: number | null;
+  memoryTotal: number;
+  temperature: number | null;
+  powerUsage: number | null;
+}
+
+export interface MetricsHistory {
+  windowHours: number;
+  serverPoints: ServerMetricPoint[];
+  gpuPoints: GpuMetricPoint[];
+}
+
+export interface NotificationItem {
+  id: string;
+  level: "info" | "warning" | "critical";
+  title: string;
+  message: string;
+  isRead: boolean;
+  source: "derived" | "stored";
+  createdAt: string;
+}
+
+export interface NotificationList {
+  unreadCount: number;
+  items: NotificationItem[];
+}
+
 export interface SystemSettings {
   consoleName: string;
   timezone: string;

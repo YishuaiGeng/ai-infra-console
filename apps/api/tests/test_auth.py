@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from ai_infra_api.core.security import hash_password
+from ai_infra_api.core.security import create_access_token, hash_password
 from ai_infra_api.db.models import AuditLog, User, UserRole
 
 
@@ -14,12 +14,13 @@ async def create_user(
     *,
     username: str = "admin",
     password: str = "correct-password",
+    role: UserRole = UserRole.ADMIN,
     active: bool = True,
 ) -> User:
     user = User(
         username=username,
         password_hash=hash_password(password),
-        role=UserRole.ADMIN,
+        role=role,
         is_active=active,
     )
     async with app.state.database.session_factory() as session:
@@ -162,3 +163,60 @@ async def test_validation_error_uses_error_envelope(client: AsyncClient) -> None
     assert response.json()["error"]["code"] == "validation_error"
     assert response.json()["error"]["request_id"] == "validation-request"
     assert len(response.json()["error"]["details"]) == 2
+
+
+async def test_system_settings_are_persisted_and_role_protected(
+    client: AsyncClient,
+    app: FastAPI,
+) -> None:
+    admin = await create_user(app, username="settings-admin")
+    viewer = await create_user(
+        app,
+        username="settings-viewer",
+        role=UserRole.VIEWER,
+    )
+    admin_token, _ = create_access_token(admin, app.state.settings)
+    viewer_token, _ = create_access_token(viewer, app.state.settings)
+    payload = {
+        "console_name": "Personal GPU Console",
+        "timezone": "Asia/Shanghai",
+        "language": "English",
+        "heartbeat_interval": 15,
+        "offline_threshold": 45,
+        "metrics_retention_days": 30,
+        "default_model_directory": "/data/models",
+        "default_backend": "vLLM",
+        "default_port": 8001,
+        "default_gpu_memory_utilization": 0.85,
+        "require_delete_confirmation": True,
+        "audit_log_retention_days": 120,
+    }
+
+    read_default = await client.get(
+        "/api/v1/settings",
+        headers={"authorization": f"Bearer {viewer_token}"},
+    )
+    forbidden = await client.put(
+        "/api/v1/settings",
+        headers={"authorization": f"Bearer {viewer_token}"},
+        json=payload,
+    )
+    saved = await client.put(
+        "/api/v1/settings",
+        headers={"authorization": f"Bearer {admin_token}"},
+        json=payload,
+    )
+    read_saved = await client.get(
+        "/api/v1/settings",
+        headers={"authorization": f"Bearer {viewer_token}"},
+    )
+
+    assert read_default.status_code == 200
+    assert read_default.json()["console_name"] == "AI Infra Console"
+    assert forbidden.status_code == 403
+    assert saved.status_code == 200
+    assert saved.json()["console_name"] == "Personal GPU Console"
+    assert read_saved.json()["metrics_retention_days"] == 30
+    async with app.state.database.session_factory() as session:
+        audit = await session.scalar(select(AuditLog).where(AuditLog.action == "settings.updated"))
+        assert audit is not None

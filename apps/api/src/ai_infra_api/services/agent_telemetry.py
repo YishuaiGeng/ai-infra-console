@@ -11,6 +11,7 @@ from ai_infra_api.db.models import (
     Server,
     ServerAgent,
     ServerMetric,
+    ServerMetricSample,
 )
 from ai_infra_api.schemas.agent import AgentSnapshot, GPUProcessSnapshot
 from ai_infra_api.services.model_inventory import persist_model_inventory
@@ -28,6 +29,7 @@ async def persist_agent_snapshot(
     snapshot: AgentSnapshot,
     *,
     received_at: datetime | None = None,
+    metrics_retention_days: int = 14,
 ) -> AgentPersistenceResult:
     now = received_at or datetime.now(UTC)
     server = await session.get(Server, agent.server_id)
@@ -76,6 +78,19 @@ async def persist_agent_snapshot(
         "load_average": snapshot.host.cpu.load_average,
         "runtimes": snapshot.host.runtimes.model_dump(mode="json"),
     }
+    session.add(
+        ServerMetricSample(
+            server_id=server.id,
+            collected_at=now,
+            cpu_utilization=metric.cpu_utilization,
+            memory_used=metric.memory_used,
+            memory_total=metric.memory_total,
+            disk_used=metric.disk_used,
+            disk_total=metric.disk_total,
+            network_bytes_sent=metric.network_bytes_sent,
+            network_bytes_received=metric.network_bytes_received,
+        )
+    )
 
     existing_gpus = list(await session.scalars(select(GPU).where(GPU.server_id == server.id)))
     by_uuid = {item.uuid: item for item in existing_gpus}
@@ -152,6 +167,11 @@ async def persist_agent_snapshot(
         )
 
     inventory_result = await persist_model_inventory(session, server, snapshot.model_inventory)
+    retention_cutoff = now - timedelta(days=metrics_retention_days)
+    await session.execute(
+        delete(ServerMetricSample).where(ServerMetricSample.collected_at < retention_cutoff)
+    )
+    await session.execute(delete(GPUMetric).where(GPUMetric.timestamp < retention_cutoff))
 
     await session.commit()
     await session.refresh(server)

@@ -20,7 +20,7 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 | 5 | Hugging Face / ModelScope 下载 | 已完成 |
 | 6 | Docker / vLLM 部署生命周期 | 已完成 |
 | 7 | OpenAI-compatible Endpoint 展示与测试 | 进行中 |
-| 8 | Activity、历史指标和通知 | 进行中 |
+| 8 | Activity、历史指标和通知 | 已完成 |
 | 9 | 可访问性与 UI 收尾 | 计划中 |
 
 近期进展：
@@ -28,6 +28,8 @@ AI Infra Console 是一个面向个人研究者、AI 开发者和小型实验室
 - `/apis` 已改为展示真实运行中 Deployment 暴露的 Endpoint。
 - Test API Dialog 会通过 Central 对既有 Deployment Endpoint 发起受限 `/v1/chat/completions` 测试，浏览器不能提交任意 URL。
 - `/activity` 已接入真实审计日志，并在返回前过滤敏感 detail 字段。
+- Dashboard 已加入最近 24 小时资源趋势面板，数据来自 Agent 指标样本。
+- Header 通知菜单已接入 Central 的派生通知和持久化通知记录。
 
 ## 核心流程
 
