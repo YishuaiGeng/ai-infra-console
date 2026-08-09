@@ -44,6 +44,28 @@ async def test_login_and_current_user(client: AsyncClient, app: FastAPI) -> None
     assert current.status_code == 200
     assert current.json()["id"] == str(user.id)
     assert current.json()["role"] == "admin"
+    async with app.state.database.session_factory() as session:
+        session.add(
+            AuditLog(
+                actor_user_id=user.id,
+                action="agent.token.created",
+                resource_type="server",
+                resource_id="server-1",
+                success=True,
+                details={"registration_token": "secret-token", "note": "safe"},
+            )
+        )
+        await session.commit()
+    activity = await client.get(
+        "/api/v1/activity?search=agent.token.created",
+        headers={"authorization": f"Bearer {token}"},
+    )
+    assert activity.status_code == 200
+    assert activity.json()[0]["action"] == "agent.token.created"
+    assert activity.json()[0]["user"] == "admin"
+    assert activity.json()[0]["status"] == "success"
+    assert "secret-token" not in activity.json()[0]["detail"]
+    assert "safe" in activity.json()[0]["detail"]
 
     async with app.state.database.session_factory() as session:
         audit = await session.scalar(select(AuditLog).where(AuditLog.action == "auth.login"))
@@ -96,6 +118,9 @@ async def test_authentication_required(client: AsyncClient) -> None:
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "authentication_required"
+    activity = await client.get("/api/v1/activity")
+    assert activity.status_code == 401
+    assert activity.json()["error"]["code"] == "authentication_required"
 
 
 async def test_invalid_token_is_rejected(client: AsyncClient) -> None:

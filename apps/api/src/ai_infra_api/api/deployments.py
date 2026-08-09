@@ -8,6 +8,8 @@ from ai_infra_api.core.middleware import request_id_from
 from ai_infra_api.db.models import Deployment
 from ai_infra_api.dependencies import AdminUser, CurrentUser, DatabaseSession
 from ai_infra_api.schemas.deployments import (
+    DeploymentApiTestRequest,
+    DeploymentApiTestResponse,
     DeploymentCreateRequest,
     DeploymentDeleteRequest,
     DeploymentLogResponse,
@@ -25,6 +27,7 @@ from ai_infra_api.services.deployments import (
     list_deployments,
     queue_deployment_action,
     retry_deployment,
+    test_deployment_api_endpoint,
     validate_deployment_action_target,
 )
 from ai_infra_api.services.infrastructure_events import publish_deployment_update
@@ -333,6 +336,28 @@ async def deployment_logs(
             after=after,
             limit=limit,
             search=search,
+        )
+    except DeploymentError as exc:
+        raise deployment_error(exc) from exc
+
+
+@router.post(
+    "/deployments/{deployment_id}/test-api",
+    response_model=DeploymentApiTestResponse,
+)
+async def deployment_test_api(
+    deployment_id: uuid.UUID,
+    payload: DeploymentApiTestRequest,
+    request: Request,
+    session: DatabaseSession,
+    _user: CurrentUser,
+) -> DeploymentApiTestResponse:
+    try:
+        return await test_deployment_api_endpoint(
+            session,
+            deployment_id,
+            payload,
+            timeout_seconds=request.app.state.settings.api_test_timeout_seconds,
         )
     except DeploymentError as exc:
         raise deployment_error(exc) from exc

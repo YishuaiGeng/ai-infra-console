@@ -179,6 +179,21 @@ class DeploymentLogResponse(BaseModel):
     message: str
 
 
+class DeploymentApiTestRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=8_192)
+    max_tokens: int = Field(default=128, ge=1, le=4_096)
+    temperature: float = Field(default=0.7, ge=0, le=2)
+
+
+class DeploymentApiTestResponse(BaseModel):
+    response: str
+    latency_ms: float
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+    model: str | None = None
+
+
 class DeploymentCreateCommand(BaseModel):
     kind: Literal["create"] = "create"
     operation_id: uuid.UUID

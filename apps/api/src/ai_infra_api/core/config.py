@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     deployment_task_lease_seconds: int = Field(default=90, ge=15, le=3_600)
     deployment_telemetry_fresh_seconds: int = Field(default=30, ge=10, le=3_600)
     deployment_log_retention_lines: int = Field(default=2_000, ge=100, le=20_000)
+    api_test_timeout_seconds: float = Field(default=30, ge=1, le=120)
     vllm_image: str = Field(default="vllm/vllm-openai:latest", min_length=1, max_length=255)
     model_catalog_timeout_seconds: float = Field(default=10, ge=1, le=60)
     model_catalog_cache_seconds: int = Field(default=60, ge=0, le=3_600)

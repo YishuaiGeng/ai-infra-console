@@ -2,11 +2,18 @@
 
 ## Status
 
-- State: Code-level plan established on 2026-08-08; implementation not started
+- State: Complete in code as of 2026-08-09; current follow-up work is Phase 7/8 integration
 - Entry gate: Phase 5 complete, including GitHub Actions run [`31221477457`](https://github.com/YishuaiGeng/ai-infra-console/actions/runs/31221477457)
 - Exit gate: every acceptance item in this document has direct automated, browser, runtime, or clean Linux CI evidence
-- Scope boundary: managed vLLM Docker deployment, placement, lifecycle, health, and logs only; OpenAI-compatible request testing remains Phase 7
+- Scope boundary: managed vLLM Docker deployment, placement, lifecycle, health, and logs only; OpenAI-compatible request testing is tracked in Phase 7
 - Host boundary: deployment mutation may be enabled only for `xiao-pro6000`; model storage may remain on `xiao-cpu` or `xiao-pro6000`, but a runtime uses a model file local to its selected server. Do not modify `asus-2024` or `asus-4090`
+
+Current implementation evidence:
+
+- Central has authenticated deployment target, create, list, detail, lifecycle, delete, log, Agent claim/progress/complete, and runtime reconciliation APIs.
+- Agent has deployment settings, supervisor integration, Docker runtime execution, fixture runtime execution for tests, ownership labels, vLLM argv construction, model-root validation, health probing, and bounded log forwarding.
+- Web deployment list/detail/actions/logs and Deploy Model Dialog use real Central data through same-origin BFF handlers.
+- Targeted checks on 2026-08-10 passed for `uv run --project apps/api pytest apps/api/tests/test_deployments_api.py`, API Ruff, Web lint, Web typecheck, and deployment DTO tests.
 
 ## Technical decisions
 

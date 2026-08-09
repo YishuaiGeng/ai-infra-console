@@ -1,7 +1,8 @@
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, ClassVar
 
+import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
@@ -145,7 +146,45 @@ async def provision_deployments(
 async def test_deployment_lifecycle_health_logs_and_permissions(
     app: FastAPI,
     client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    class FakeOpenAIClient:
+        requests: ClassVar[list[dict[str, Any]]] = []
+
+        def __init__(self, *, timeout: float) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self) -> "FakeOpenAIClient":
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, url: str, *, json: dict[str, Any]) -> object:
+            self.requests.append({"url": url, "json": json, "timeout": self.timeout})
+
+            class Response:
+                def raise_for_status(self) -> None:
+                    return None
+
+                def json(self) -> dict[str, Any]:
+                    return {
+                        "model": "Qwen/Qwen3-8B",
+                        "choices": [{"message": {"content": "Hello from vLLM"}}],
+                        "usage": {
+                            "prompt_tokens": 3,
+                            "completion_tokens": 4,
+                            "total_tokens": 7,
+                        },
+                    }
+
+            return Response()
+
+    monkeypatch.setattr(
+        "ai_infra_api.services.deployments.httpx.AsyncClient",
+        FakeOpenAIClient,
+    )
+
     admin, viewer, agent, server_id = await provision_deployments(app, client)
     targets = await client.get("/api/v1/deployment-targets", headers=viewer)
     assert targets.status_code == 200
@@ -266,6 +305,28 @@ async def test_deployment_lifecycle_health_logs_and_permissions(
     assert logs.status_code == 200
     assert logs.json()[0]["message"] == "INFO runtime ready [0m"
 
+    api_test = await client.post(
+        f"/api/v1/deployments/{deployment_id}/test-api",
+        headers=viewer,
+        json={"prompt": "Hello", "max_tokens": 16, "temperature": 0.2},
+    )
+    assert api_test.status_code == 200
+    assert api_test.json()["response"] == "Hello from vLLM"
+    assert api_test.json()["input_tokens"] == 3
+    assert FakeOpenAIClient.requests == [
+        {
+            "url": "http://10.20.0.60:8001/v1/chat/completions",
+            "json": {
+                "model": "Qwen/Qwen3-8B",
+                "messages": [{"role": "user", "content": "Hello"}],
+                "max_tokens": 16,
+                "temperature": 0.2,
+                "stream": False,
+            },
+            "timeout": app.state.settings.api_test_timeout_seconds,
+        }
+    ]
+
     stop = await client.post(f"/api/v1/deployments/{deployment_id}/stop", headers=admin)
     assert stop.status_code == 200
     stop_command = (
@@ -287,6 +348,13 @@ async def test_deployment_lifecycle_health_logs_and_permissions(
     assert (
         await client.get(f"/api/v1/deployments/{deployment_id}", headers=viewer)
     ).json()["status"] == "stopped"
+    stopped_api_test = await client.post(
+        f"/api/v1/deployments/{deployment_id}/test-api",
+        headers=viewer,
+        json={"prompt": "Hello"},
+    )
+    assert stopped_api_test.status_code == 409
+    assert stopped_api_test.json()["error"]["code"] == "deployment_not_running"
 
     bad_confirm = await client.request(
         "DELETE",

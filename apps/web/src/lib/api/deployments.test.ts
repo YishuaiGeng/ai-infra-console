@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  apiEndpointTestPayload,
+  apiEndpointTestResponseSchema,
   availableDeploymentActions,
   deploymentCreatePayload,
   deploymentDtoSchema,
   deploymentLogPath,
+  mapApiEndpointTestResult,
   mapDeployment,
 } from "@/lib/api/deployments";
 
@@ -137,5 +140,34 @@ describe("deployment DTO mapping", () => {
     expect(deploymentLogPath("id/1", "CUDA error", 200)).toBe(
       "/api/deployments/id%2F1/logs?limit=200&search=CUDA+error",
     );
+  });
+
+  it("maps real OpenAI-compatible endpoint test responses", () => {
+    expect(
+      apiEndpointTestPayload({
+        prompt: "Hello",
+        maxTokens: 16,
+        temperature: 0.2,
+      }),
+    ).toEqual({ prompt: "Hello", max_tokens: 16, temperature: 0.2 });
+    expect(
+      mapApiEndpointTestResult(
+        apiEndpointTestResponseSchema.parse({
+          response: "Hello from vLLM",
+          latency_ms: 42.5,
+          input_tokens: 3,
+          output_tokens: 4,
+          total_tokens: 7,
+          model: "Qwen/Qwen3-8B",
+        }),
+      ),
+    ).toEqual({
+      response: "Hello from vLLM",
+      latencyMs: 42.5,
+      inputTokens: 3,
+      outputTokens: 4,
+      totalTokens: 7,
+      model: "Qwen/Qwen3-8B",
+    });
   });
 });

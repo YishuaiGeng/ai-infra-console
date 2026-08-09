@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
 import {
+  apiEndpointTestPayload,
+  apiEndpointTestResponseSchema,
   deploymentDtoSchema,
   deploymentCreatePayload,
   deploymentLogPath,
@@ -11,11 +13,14 @@ import {
   deploymentQueryKeys,
   deploymentTargetDtoSchema,
   mapDeployment,
+  mapApiEndpointTestResult,
   mapDeploymentLog,
   mapDeploymentTarget,
+  type ApiEndpointTestInput,
   type DeploymentAction,
   type DeploymentCreateInput,
 } from "@/lib/api/deployments";
+import { activityQueryKeys } from "@/lib/api/activity";
 import { apiRequest, infrastructureQueryKeys } from "@/lib/api/infrastructure";
 import { modelQueryKeys } from "@/lib/api/models";
 
@@ -82,6 +87,7 @@ export function useDeploymentLogs(id: string, search: string, limit: number) {
 async function invalidateDeploymentQueries(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: deploymentQueryKeys.all }),
+    queryClient.invalidateQueries({ queryKey: activityQueryKeys.all }),
     queryClient.invalidateQueries({ queryKey: infrastructureQueryKeys.all }),
     queryClient.invalidateQueries({ queryKey: modelQueryKeys.all }),
   ]);
@@ -127,5 +133,21 @@ export function useDeleteDeployment() {
         }),
       ),
     onSuccess: () => invalidateDeploymentQueries(queryClient),
+  });
+}
+
+export function useTestApiEndpoint() {
+  return useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: ApiEndpointTestInput }) =>
+      mapApiEndpointTestResult(
+        await apiRequest(
+          `/api/deployments/${encodeURIComponent(id)}/test-api`,
+          apiEndpointTestResponseSchema,
+          {
+            method: "POST",
+            body: JSON.stringify(apiEndpointTestPayload(input)),
+          },
+        ),
+      ),
   });
 }

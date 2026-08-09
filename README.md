@@ -1,88 +1,61 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-5%20Model%20Download-2563eb)](./docs/DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-7%20API%20Testing-2563eb)](./docs/DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](./LICENSE)
 
-English | [简体中文](./docs/README.zh-CN.md)
-
-AI Infra Console is a lightweight control plane for AI servers, NVIDIA GPUs, model files, inference deployments, downloads, and OpenAI-compatible endpoints. It is designed for individual researchers, AI developers, and small labs that need a focused infrastructure view without adopting a full cluster platform.
+AI Infra Console is a lightweight control plane for personal AI infrastructure: servers, NVIDIA GPUs, local model files, model downloads, vLLM deployments, OpenAI-compatible endpoints, and audit activity. It is designed for individual researchers, AI developers, and small labs that need a focused resource console without adopting a full cluster platform.
 
 ![AI Infra Console dashboard](./docs/assets/dashboard-dark.png)
 
-> [!IMPORTANT]
-> Server, GPU, installed-model, provider-search, and model-download views now use real Central API and outbound Agent data. Phase 5 is complete. Deployment lifecycle actions are the current Phase 6 work.
+> Server credentials, private host records, API tokens, and the local `服务器资料/` directory are intentionally excluded from Git. Keep production secrets in environment files or your own secret manager.
 
-## Phase 0 UI coverage (mock-backed)
+## Current Status
 
-- GPU-first dashboard that surfaces available devices before secondary metrics.
-- Server inventory and server details with host, GPU, model, and process views.
-- GPU table/card views with server, model, status, and availability filters.
-- Hugging Face and ModelScope model library with client-side validated download forms.
-- Installed model locations across multiple servers.
-- Deployment inventory, configuration, lifecycle controls, metrics, and terminal-style logs.
-- Simulated download progress, a mock API test dialog with a synthetic response, activity logs, and system settings.
-- Light, dark, and system themes with responsive desktop, tablet, and basic mobile layouts.
-- Shared mock data across every page so totals and relationships remain consistent.
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 0 | UI foundation | Complete |
+| 1 | Central API, database, Redis, authentication | Complete |
+| 2 | Outbound Agent registration, heartbeat, hardware collection | Complete |
+| 3 | Real server and GPU integration | Complete |
+| 4 | Model inventory and directory scanning | Complete |
+| 5 | Hugging Face and ModelScope downloads | Complete |
+| 6 | Docker and vLLM deployment lifecycle | Complete |
+| 7 | OpenAI-compatible endpoint listing and test dialog | In progress |
+| 8 | Activity, metrics history, and notifications | In progress |
+| 9 | Accessibility and UI polish | Planned |
 
-## Phase 1 backend (complete)
+Recent Phase 7/8 progress:
 
-- FastAPI application with `/api/v1`, liveness, readiness, and OpenAPI documentation.
-- PostgreSQL-oriented SQLAlchemy schema with 15 tables and an Alembic migration.
-- Username/password login, Argon2 hashes, short-lived JWT bearer tokens, and Admin/Viewer roles.
-- Stable API error envelope, structured logs, propagated request IDs, and authentication audit records.
-- Redis-backed RQ worker with a fixed task registry and no arbitrary command execution path.
-- Five-service Compose definition for web, API, PostgreSQL, Redis, and worker.
-- Automated backend lint, type checking, migration, authentication, error, health, and worker tests.
+- `/apis` now lists real running deployment endpoints instead of mock endpoint fixtures.
+- The API test dialog sends a bounded `/v1/chat/completions` request through Central for an existing deployment endpoint; the browser cannot submit an arbitrary URL.
+- `/activity` now reads real audit logs from Central and filters sensitive detail keys before displaying them.
 
-## Phase 2 Agent (complete)
-
-- Outbound-only Python Agent with strict environment configuration and structured logs.
-- Admin-issued per-Agent registration tokens with digest-only storage, rotation, and revocation.
-- Registration and heartbeat APIs that persist host metrics, GPU inventory, GPU metrics, and GPU processes.
-- `psutil` host collection, Docker/Ollama detection, NVML-first NVIDIA collection, and fixed `nvidia-smi` fallback.
-- Explicit allowlist for three read-only operations; no inbound port or generic command execution.
-- Non-root container, hardened systemd template, wheel installer, retry/backoff, and CPU-only degradation.
-
-## Phase 3 infrastructure integration (complete)
-
-- Authenticated server, server-detail, GPU, and infrastructure-summary read APIs.
-- Same-origin Web BFF with a Secure HttpOnly session cookie; API bearer tokens never enter client storage.
-- Redis-backed SSE invalidation with bounded polling recovery.
-- Real Dashboard, Servers, Server Detail, and GPU table/card views across online, offline, CPU-only, and multi-GPU nodes.
-- Admin-only server registration and Agent token lifecycle with Viewer read access.
-- Three-server Compose smoke coverage for migrations, Agent heartbeat, SSE, Web BFF, and authorization boundaries.
-
-## Phase 4 model inventory (complete)
-
-- Agent-owned model-directory allowlists with bounded, read-only filesystem scanning.
-- Safetensors, PyTorch bin, standalone GGUF, Hugging Face cache, and loopback Ollama discovery.
-- Reconciled logical models and physical locations across multiple servers without losing failed-root history.
-- Authenticated inventory, model detail, summary, and per-server directory APIs with SSE refresh.
-- Real Installed Models and Server Detail Models views with scan health and Admin-only default selection.
-
-## Phase 5 model download (complete)
-
-- Normalized Hugging Face and ModelScope search through official provider clients.
-- Admin-only download, cancel, retry, and exact-confirm deletion workflows with Viewer read access.
-- Outbound Agent task leases, cooperative cancellation, atomic publish, immediate inventory refresh, and safe retry behavior.
-- Central and Agent host/path allowlists that permit mutation only on explicitly configured model roots.
-- Progress, byte totals, speed, attempts, timestamps, and bounded provider errors in the real Downloads view.
-
-## Product workflow
-
-This is the target product workflow. Phase 0 only simulates its interactions in the browser.
+## Core Workflow
 
 ```text
 View servers and GPUs
   -> Find available GPU capacity
-  -> Inspect or download a model
+  -> Search or download a model
+  -> Inspect installed model locations
   -> Choose server and GPU placement
-  -> Deploy with vLLM or Ollama
-  -> Inspect logs and health
+  -> Deploy with vLLM
+  -> Inspect health and logs
   -> Copy or test the OpenAI-compatible endpoint
-  -> Stop the deployment and release GPU capacity
+  -> Stop or delete the deployment
+  -> GPU capacity becomes available again
 ```
+
+## Features
+
+- GPU-first dashboard with server status, GPU allocation, model counts, and deployment health.
+- Authenticated Central API with stable error envelopes, request IDs, JWT sessions, Admin/Viewer roles, and audit logs.
+- Outbound-only Agent that reports host metrics, GPU telemetry, GPU processes, Docker/Ollama availability, and model inventory.
+- Model inventory for Safetensors, PyTorch bin, GGUF, Hugging Face cache layouts, and local Ollama discovery.
+- Provider search and download task orchestration for Hugging Face and ModelScope.
+- Safe vLLM deployment lifecycle: create, start, stop, restart, retry, delete, health, bounded logs, deterministic ports, and exact GPU placement.
+- Web BFF using Secure HttpOnly session cookies so API bearer tokens do not enter browser storage.
+- Security guardrails against generic remote shell, arbitrary Docker/image control, unsafe model paths, and backup-host mutation.
 
 ## Pages
 
@@ -94,108 +67,85 @@ View servers and GPUs
 | Services | `/apis` |
 | System | `/activity`, `/settings` |
 
-The root route `/` redirects to `/dashboard`. Server detail routes use IDs returned by the real API; `/deployments/dep-qwen32` remains a fixture-backed example until Phase 6.
+The root route `/` redirects to `/dashboard`.
 
-## Tech stack
+## Tech Stack
 
-- Next.js 16, React 19, and TypeScript
-- Tailwind CSS 4 and shadcn/ui with Base UI primitives
-- TanStack Query and TanStack Table 9
-- React Hook Form and Zod
-- Zustand, Recharts, Lucide React, next-themes, and Sonner
-- FastAPI, SQLAlchemy, Pydantic, Alembic, PostgreSQL, Redis, and RQ
-- psutil, NVIDIA Management Library, Docker SDK, and HTTPX for the Agent
-- uv, Ruff, mypy, and pytest
+- Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui, Base UI, Lucide React
+- TanStack Query, TanStack Table, React Hook Form, Zod, Zustand, Recharts, Sonner
+- FastAPI, SQLAlchemy, Pydantic, Alembic, PostgreSQL, Redis, RQ
+- Python Agent with psutil, NVIDIA Management Library, Docker SDK, HTTPX
+- uv, Ruff, mypy, pytest, Vitest, ESLint
 
-## Quick start
+## Quick Start
 
 Requirements:
 
 - Node.js 20.9 or newer
 - npm 10 or newer
-- Python 3.11 or newer and uv 0.9 or newer for backend development
-- Docker Engine with Compose v2 for the complete stack
+- Python 3.11 or newer and uv 0.9 or newer for API/Agent development
+- Docker Engine with Compose v2 for the complete local stack
 
-From the repository root:
+Install dependencies and start the web app:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). If that port is already occupied, Next.js will report the selected local URL.
+Open [http://localhost:3000](http://localhost:3000). If port 3000 is occupied, Next.js will print the selected URL.
 
-For the complete Compose stack, configure `.env` from `.env.example`, then run `docker compose up -d --build`. See [Backend Development](./docs/BACKEND_DEVELOPMENT.md).
+For the full stack, copy `.env.example` to `.env`, adjust local values, then run:
+
+```bash
+docker compose up -d --build
+```
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the web console in development mode |
-| `npm run lint` | Run ESLint across the web workspace |
-| `npm run typecheck` | Run TypeScript without emitting files |
-| `npm run build` | Create the production Next.js build |
-| `npm run start` | Serve a completed production build |
+| `npm run lint` | Run ESLint for the web workspace |
+| `npm run typecheck` | Run TypeScript checks |
+| `npm run build` | Build the production web app |
 | `npm run check:api` | Run API lint, type checking, and tests |
-| `npm run api:smoke` | Run a temporary API, Redis, auth, and worker smoke test |
-| `npm run check:agent` | Run Agent lint, strict type checking, and tests |
-| `npm run security:scan` | Enforce command-interface and tracked-secret boundaries |
-| `npm run check` | Run all Web, API, Agent, and security checks |
-| `docker compose up -d --build` | Start the five-service local stack |
+| `npm run check:agent` | Run Agent lint, type checking, and tests |
+| `npm run security:scan` | Scan for tracked secrets and unsafe command interfaces |
+| `npm run check` | Run Web, API, Agent, and security checks |
+| `docker compose up -d --build` | Start the local Compose stack |
 
-Use `uv run --project apps/agent ai-infra-agent collect` for a local hardware snapshot. Agent provisioning and systemd operation are documented in [Agent Operations](./docs/AGENT_OPERATIONS.md).
-
-## Repository layout
+## Repository Layout
 
 ```text
 ai-infra-console/
-├── apps/
-│   ├── api/                 # FastAPI, migrations, worker, and tests
-│   ├── agent/               # Outbound Agent, collectors, client, and tests
-│   └── web/                 # Next.js application
-│       └── src/
-│           ├── app/         # App Router pages and layouts
-│           ├── components/  # UI primitives and domain components
-│           ├── config/      # Navigation and product configuration
-│           ├── features/    # Page-level feature composition
-│           ├── mocks/       # Fixtures isolated to later roadmap phases
-│           ├── stores/      # Client UI state
-│           └── types/       # Shared domain types
-├── compose.yaml
-├── docs/                    # Roadmap, phase plans, and operations docs
-├── CONTRIBUTING.md
-├── SECURITY.md
-└── package.json             # npm workspace entry point
+|-- apps/
+|   |-- api/       # FastAPI, migrations, worker, tests
+|   |-- agent/     # Outbound Agent, collectors, runtime supervisors, tests
+|   `-- web/       # Next.js console
+|-- deploy/        # systemd and deployment templates
+|-- docs/          # roadmap, phase plans, operations docs
+|-- scripts/       # security and smoke scripts
+|-- compose.yaml
+|-- CONTRIBUTING.md
+|-- SECURITY.md
+`-- package.json
 ```
 
-Phase 5 passed its code-level, browser, and Linux Compose gates in [GitHub Actions run 31221477457](https://github.com/YishuaiGeng/ai-infra-console/actions/runs/31221477457). Phase 6 is tracked in its [code-level deployment plan](./docs/phases/PHASE_6_DEPLOYMENT.md).
+## Security Model
 
-## Roadmap
+AI Infra Console controls sensitive infrastructure. Agent capabilities are intentionally explicit and allowlisted. The project must not add generic remote shell, SSH terminal, `/exec`, `/shell`, `/command`, arbitrary image, arbitrary volume, or arbitrary host-path mutation APIs.
 
-| Phase | Scope | Status |
-| --- | --- | --- |
-| 0 | UI Foundation | Complete |
-| 1 | Central API, database, Redis, authentication | Complete |
-| 2 | Agent registration, heartbeat, hardware collection | Complete |
-| 3 | Real server and GPU integration | Complete |
-| 4 | Model inventory and directory scanning | Complete |
-| 5 | Hugging Face and ModelScope downloads | Complete |
-| 6 | Docker and vLLM deployment lifecycle | Planning |
-| 7 | OpenAI-compatible API testing | Planned |
-| 8 | Historical metrics and notifications | Planned |
-| 9 | Accessibility and UI polish | Planned |
+Never commit real host records, credentials, registration tokens, provider tokens, private addresses, or local server notes. Review [SECURITY.md](./SECURITY.md) before changing backend, Agent, deployment, or filesystem mutation code.
 
-Development uses an explicit verification gate before the next phase begins. See the [detailed development roadmap](./docs/DEVELOPMENT_ROADMAP.md) and the [product requirements](./AI%20Infrastructure%20Control%20Center.md).
+## Documentation
 
-## Security model
-
-AI Infra Console is intended to control sensitive infrastructure. Future Agent capabilities must expose explicit allowlisted operations only. Arbitrary remote shell, SSH terminal, `/exec`, `/shell`, and `/command` APIs are outside the project boundary.
-
-Never commit real host records, credentials, registration tokens, model provider tokens, or private addresses. The local `服务器资料/` directory is explicitly ignored for this reason. Review [SECURITY.md](./SECURITY.md) before implementing backend or Agent features.
-
-## Contributing
-
-Issues and focused pull requests are welcome. Read [CONTRIBUTING.md](./CONTRIBUTING.md), keep changes within the active roadmap phase, and include screenshots for visible UI changes.
+- [Development roadmap](./docs/DEVELOPMENT_ROADMAP.md)
+- [Phase 6 deployment plan](./docs/phases/PHASE_6_DEPLOYMENT.md)
+- [Backend development](./docs/BACKEND_DEVELOPMENT.md)
+- [Agent operations](./docs/AGENT_OPERATIONS.md)
+- [Deployment targets](./docs/DEPLOYMENT_TARGETS.md)
+- [Product requirements](./AI%20Infrastructure%20Control%20Center.md)
 
 ## License
 

@@ -4,8 +4,9 @@ import re
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Any, cast
 
+import httpx
 from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +28,8 @@ from ai_infra_api.db.models import (
     User,
 )
 from ai_infra_api.schemas.deployments import (
+    DeploymentApiTestRequest,
+    DeploymentApiTestResponse,
     DeploymentCommand,
     DeploymentConfigRequest,
     DeploymentCreateCommand,
@@ -1078,3 +1081,108 @@ async def list_deployment_logs(
         )
         for row in rows
     ]
+
+
+def _chat_completions_url(endpoint: str) -> str:
+    return f"{endpoint.rstrip('/')}/chat/completions"
+
+
+def _extract_chat_response(payload: dict[str, Any]) -> str:
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise DeploymentError(
+            "api_test_invalid_response",
+            "The endpoint returned no chat completion choices.",
+        )
+    first = choices[0]
+    if not isinstance(first, dict):
+        raise DeploymentError(
+            "api_test_invalid_response",
+            "The endpoint returned an invalid chat completion choice.",
+        )
+    message = first.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    if isinstance(content, str):
+        return content
+    text = first.get("text")
+    if isinstance(text, str):
+        return text
+    raise DeploymentError(
+        "api_test_invalid_response",
+        "The endpoint returned a completion without text content.",
+    )
+
+
+def _usage_value(usage: object, key: str) -> int | None:
+    if not isinstance(usage, dict):
+        return None
+    value = usage.get(key)
+    return value if isinstance(value, int) else None
+
+
+async def test_deployment_api_endpoint(
+    session: AsyncSession,
+    deployment_id: uuid.UUID,
+    request: DeploymentApiTestRequest,
+    *,
+    timeout_seconds: float = 30,
+) -> DeploymentApiTestResponse:
+    row = (
+        await session.execute(
+            select(Deployment, Model)
+            .join(ModelFile, ModelFile.id == Deployment.model_file_id)
+            .join(Model, Model.id == ModelFile.model_id)
+            .where(Deployment.id == deployment_id)
+        )
+    ).one_or_none()
+    if row is None:
+        raise DeploymentError("deployment_not_found", "The deployment does not exist.")
+    deployment, model = row
+    if deployment.status != "running":
+        raise DeploymentError(
+            "deployment_not_running",
+            "Only a running deployment endpoint can be tested.",
+        )
+    started = datetime.now(UTC)
+    payload = {
+        "model": model.source_id,
+        "messages": [{"role": "user", "content": request.prompt}],
+        "max_tokens": request.max_tokens,
+        "temperature": request.temperature,
+        "stream": False,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            response = await client.post(_chat_completions_url(deployment.endpoint), json=payload)
+            response.raise_for_status()
+            body = response.json()
+    except httpx.TimeoutException as exc:
+        raise DeploymentError(
+            "api_test_timeout",
+            "The endpoint test timed out.",
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        raise DeploymentError(
+            "api_test_upstream_error",
+            f"The endpoint returned HTTP {exc.response.status_code}.",
+        ) from exc
+    except (httpx.HTTPError, ValueError) as exc:
+        raise DeploymentError(
+            "api_test_failed",
+            "The endpoint test request failed.",
+        ) from exc
+    if not isinstance(body, dict):
+        raise DeploymentError(
+            "api_test_invalid_response",
+            "The endpoint returned an invalid JSON response.",
+        )
+    latency_ms = round((datetime.now(UTC) - started).total_seconds() * 1_000, 2)
+    usage = body.get("usage")
+    return DeploymentApiTestResponse(
+        response=_extract_chat_response(body),
+        latency_ms=latency_ms,
+        input_tokens=_usage_value(usage, "prompt_tokens"),
+        output_tokens=_usage_value(usage, "completion_tokens"),
+        total_tokens=_usage_value(usage, "total_tokens"),
+        model=body.get("model") if isinstance(body.get("model"), str) else model.source_id,
+    )

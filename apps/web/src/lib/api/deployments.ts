@@ -121,7 +121,31 @@ export const deploymentLogDtoSchema = z.object({
   message: z.string(),
 });
 
+export const apiEndpointTestResponseSchema = z.object({
+  response: z.string(),
+  latency_ms: z.number(),
+  input_tokens: z.number().int().nullable(),
+  output_tokens: z.number().int().nullable(),
+  total_tokens: z.number().int().nullable(),
+  model: nullableString,
+});
+
 export type DeploymentAction = "start" | "stop" | "restart" | "retry" | "delete";
+
+export interface ApiEndpointTestInput {
+  prompt: string;
+  maxTokens: number;
+  temperature: number;
+}
+
+export interface ApiEndpointTestResult {
+  response: string;
+  latencyMs: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+  model: string | null;
+}
 
 export interface DeploymentCreateInput {
   name: string;
@@ -159,6 +183,14 @@ export function deploymentLogPath(id: string, search: string, limit: number) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (search) params.set("search", search);
   return `/api/deployments/${encodeURIComponent(id)}/logs?${params.toString()}`;
+}
+
+export function apiEndpointTestPayload(input: ApiEndpointTestInput) {
+  return {
+    prompt: input.prompt,
+    max_tokens: input.maxTokens,
+    temperature: input.temperature,
+  };
 }
 
 export const deploymentQueryKeys = {
@@ -294,6 +326,19 @@ export function mapDeploymentLog(
     timestamp: dto.timestamp,
     stream: dto.stream,
     message: dto.message,
+  };
+}
+
+export function mapApiEndpointTestResult(
+  dto: z.infer<typeof apiEndpointTestResponseSchema>,
+): ApiEndpointTestResult {
+  return {
+    response: dto.response,
+    latencyMs: dto.latency_ms,
+    inputTokens: dto.input_tokens,
+    outputTokens: dto.output_tokens,
+    totalTokens: dto.total_tokens,
+    model: dto.model,
   };
 }
 

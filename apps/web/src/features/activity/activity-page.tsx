@@ -3,9 +3,11 @@
 import { createColumnHelper } from "@tanstack/react-table";
 
 import type { ActivityLog } from "@/types";
-import { activityLogs, getServer } from "@/mocks/data";
+import { useActivityLogs } from "@/hooks/use-activity";
 import { formatDateTime } from "@/lib/format";
 import { PageContainer } from "@/components/layout/page-container";
+import { ErrorState } from "@/components/shared/error-state";
+import { TableLoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionPanel } from "@/components/shared/section-panel";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -28,7 +30,7 @@ const columns: DataTableColumn<ActivityLog>[] = helper.columns([
   helper.accessor("serverId", {
     id: "Server",
     header: "Server",
-    cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() ? getServer(getValue() as string)?.name : "--"}</span>,
+    cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() ?? "--"}</span>,
     sortFn: "text",
   }),
   helper.accessor("status", {
@@ -44,6 +46,9 @@ const columns: DataTableColumn<ActivityLog>[] = helper.columns([
 ]);
 
 export function ActivityPage() {
+  const activityQuery = useActivityLogs("");
+  const activityLogs = activityQuery.data ?? [];
+
   return (
     <PageContainer>
       <PageHeader
@@ -51,14 +56,26 @@ export function ActivityPage() {
         description="Audit trail for infrastructure, model transfer, and deployment lifecycle events."
       />
       <SectionPanel title="Audit log" description={`${activityLogs.length} recent events`}>
-        <DataTable
-          data={activityLogs}
-          columns={columns}
-          searchText={(log) => `${log.user} ${log.action} ${log.resource} ${log.detail} ${log.serverId ? getServer(log.serverId)?.name : ""}`}
-          searchPlaceholder="Search audit events..."
-          emptyTitle="No activity recorded"
-          emptyMessage="Infrastructure and model operations will appear here."
-        />
+        {activityQuery.isLoading ? (
+          <TableLoadingSkeleton />
+        ) : activityQuery.isError ? (
+          <ErrorState
+            title="Activity unavailable"
+            message={activityQuery.error.message}
+            onRetry={() => void activityQuery.refetch()}
+          />
+        ) : (
+          <DataTable
+            data={activityLogs}
+            columns={columns}
+            searchText={(log) =>
+              `${log.user} ${log.action} ${log.resource} ${log.detail} ${log.serverId ?? ""}`
+            }
+            searchPlaceholder="Search audit events..."
+            emptyTitle="No activity recorded"
+            emptyMessage="Infrastructure and model operations will appear here."
+          />
+        )}
       </SectionPanel>
     </PageContainer>
   );
