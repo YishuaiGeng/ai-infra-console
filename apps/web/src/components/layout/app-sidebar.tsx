@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Braces, ChevronLeft, ChevronRight, Cpu, X } from "lucide-react";
+import { Braces, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 import { navigation } from "@/config/navigation";
 import { cn } from "@/lib/utils";
@@ -34,8 +35,15 @@ function NavContent({
           )}
           onClick={onNavigate}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-foreground text-background">
-            <Cpu className="size-4" />
+          <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-black">
+            <Image
+              src="/brand/logo-mark.png"
+              alt={collapsed ? "AI Infra Console" : ""}
+              width={32}
+              height={32}
+              className="size-8 object-cover"
+              priority
+            />
           </span>
           {!collapsed && (
             <span className="min-w-0">

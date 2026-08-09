@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { LockKeyhole, Server } from "lucide-react";
+import Image from "next/image";
+import { LockKeyhole } from "lucide-react";
 
 import { LoginForm } from "@/features/auth/login-form";
 
@@ -15,8 +16,15 @@ export default async function LoginPage({
     <main className="grid min-h-screen place-items-center bg-muted/25 px-4 py-10">
       <section className="w-full max-w-sm" aria-labelledby="login-title">
         <div className="mb-8 flex items-center gap-3">
-          <div className="grid size-10 place-items-center rounded-md bg-foreground text-background">
-            <Server className="size-5" />
+          <div className="grid size-10 place-items-center overflow-hidden rounded-md border bg-black">
+            <Image
+              src="/brand/logo-mark.png"
+              alt=""
+              width={40}
+              height={40}
+              className="size-10 object-cover"
+              priority
+            />
           </div>
           <div>
             <div className="text-base font-semibold">AI Infra Console</div>
