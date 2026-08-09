@@ -1,7 +1,6 @@
 import type {
   ActivityLog,
   ApiEndpoint,
-  Deployment,
   DownloadTask,
   GPU,
   GPUProcess,
@@ -183,7 +182,7 @@ export const modelFiles: ModelFile[] = [
   { id: "file-llama-old", modelId: "model-llama-8b", serverId: "srv-lab-old-01", sizeGb: 8.7, format: "GGUF", path: "/home/share/models/llama-3.1-8b-q4_k_m.gguf", status: "error", deployments: 0, quantization: "Q4_K_M", revision: "main" },
 ];
 
-export const deployments: Deployment[] = [
+export const deployments = [
   { id: "dep-qwen32", name: "qwen3-32b-prod", modelId: "model-qwen3-32b", serverId: "srv-lab-4090-01", gpuIds: ["gpu-4090-0", "gpu-4090-1"], backend: "vLLM", port: 8001, status: "running", uptime: "2d 06h", endpoint: "http://10.20.0.21:8001/v1", createdAt: "2026-08-05T08:12:00Z", updatedAt: "2026-08-07T14:58:00Z", config: { tensorParallelSize: 2, gpuMemoryUtilization: 0.9, maxModelLength: 32768, dataType: "bfloat16", trustRemoteCode: false, extraArguments: "--enable-prefix-caching" } },
   { id: "dep-bge", name: "bge-m3-embeddings", modelId: "model-bge-m3", serverId: "srv-lab-a6000-01", gpuIds: ["gpu-a6000-0"], backend: "vLLM", port: 8002, status: "running", uptime: "05h 17m", endpoint: "http://10.20.0.32:8002/v1", createdAt: "2026-08-07T09:41:00Z", updatedAt: "2026-08-07T14:58:00Z", config: { tensorParallelSize: 1, gpuMemoryUtilization: 0.55, maxModelLength: 8192, dataType: "float16", trustRemoteCode: true, extraArguments: "--task embed" } },
   { id: "dep-qwen8", name: "qwen3-8b-throughput", modelId: "model-qwen3-8b", serverId: "srv-cloud-h100-01", gpuIds: ["gpu-h100-0"], backend: "vLLM", port: 8000, status: "running", uptime: "1d 12h", endpoint: "http://172.31.8.14:8000/v1", createdAt: "2026-08-06T02:17:00Z", updatedAt: "2026-08-07T14:58:00Z", config: { tensorParallelSize: 1, gpuMemoryUtilization: 0.92, maxModelLength: 32768, dataType: "bfloat16", trustRemoteCode: false, extraArguments: "--max-num-seqs 256" } },

@@ -82,6 +82,8 @@ function gpuDto() {
     cuda_version: "13.0",
     metric_collected_at: "2026-08-08T00:00:00Z",
     process_count: 2,
+    deployment_id: null,
+    deployment_name: null,
   };
 }
 
@@ -105,6 +107,20 @@ describe("infrastructure DTO mapping", () => {
     expect(mapped.serverHost).toBe("lab-node");
     expect(mapped.memoryUsedGb).toBe(12);
     expect(mapped.workload).toBe("2 active processes");
+  });
+
+  it("prefers a managed deployment name for allocated GPU workload", () => {
+    const mapped = mapGpu(
+      gpuDtoSchema.parse({
+        ...gpuDto(),
+        deployment_id: "deployment-1",
+        deployment_name: "qwen3-8b-prod",
+      }),
+    );
+
+    expect(mapped.status).toBe("active");
+    expect(mapped.deploymentId).toBe("deployment-1");
+    expect(mapped.workload).toBe("qwen3-8b-prod");
   });
 
   it("maps CPU-only/null values and process records deterministically", () => {

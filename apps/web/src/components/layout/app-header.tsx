@@ -17,7 +17,7 @@ import {
 import { useTheme } from "next-themes";
 
 import { breadcrumbLabels } from "@/config/navigation";
-import { getDeployment } from "@/mocks/data";
+import { useDeployment } from "@/hooks/use-deployments";
 import {
   useInfrastructureSummary,
   useServers,
@@ -83,6 +83,8 @@ function Breadcrumbs() {
   const pathname = usePathname();
   const serversQuery = useServers();
   const segments = pathname.split("/").filter(Boolean);
+  const deploymentId = segments[0] === "deployments" ? segments[1] ?? "" : "";
+  const deploymentQuery = useDeployment(deploymentId, deploymentId.length > 0);
 
   const getLabel = (segment: string, index: number) => {
     if (breadcrumbLabels[segment]) return breadcrumbLabels[segment];
@@ -90,8 +92,7 @@ function Breadcrumbs() {
     if (previous === "servers") {
       return serversQuery.data?.find((server) => server.id === segment)?.name ?? segment;
     }
-    if (previous === "deployments")
-      return getDeployment(segment)?.name ?? segment;
+    if (previous === "deployments") return deploymentQuery.data?.name ?? segment;
     return segment;
   };
 

@@ -224,6 +224,11 @@ async def test_deployment_lifecycle_health_logs_and_permissions(
     assert completed.status_code == 204
     detail = (await client.get(f"/api/v1/deployments/{deployment_id}", headers=viewer)).json()
     assert detail["status"] == "running"
+    gpu_inventory = (await client.get("/api/v1/gpus", headers=viewer)).json()
+    allocated_gpu = next(item for item in gpu_inventory if item["id"] == gpu_id)
+    assert allocated_gpu["status"] == "active"
+    assert allocated_gpu["deployment_id"] == deployment_id
+    assert allocated_gpu["deployment_name"] == "qwen3-8b-test"
 
     expected = await client.post("/api/v1/agent/deployment-runtimes/expected", headers=agent)
     assert expected.status_code == 200

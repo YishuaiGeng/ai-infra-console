@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownToLine, Search } from "lucide-react";
+import { ArrowDownToLine, LoaderCircle, Search, TriangleAlert } from "lucide-react";
 
-import { deploymentLogs } from "@/mocks/data";
+import { useDeploymentLogs } from "@/hooks/use-deployments";
+import { formatDateTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -14,22 +15,17 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
-export function DeploymentLogViewer() {
+export function DeploymentLogViewer({ deploymentId }: { deploymentId: string }) {
   const [query, setQuery] = useState("");
-  const [limit, setLimit] = useState("100");
+  const [limit, setLimit] = useState(200);
   const [follow, setFollow] = useState(true);
   const endRef = useRef<HTMLDivElement>(null);
-  const filtered = useMemo(
-    () =>
-      deploymentLogs.filter((line) =>
-        line.toLowerCase().includes(query.toLowerCase()),
-      ),
-    [query],
-  );
+  const logsQuery = useDeploymentLogs(deploymentId, query.trim(), limit);
+  const logs = useMemo(() => logsQuery.data ?? [], [logsQuery.data]);
 
   useEffect(() => {
     if (follow) endRef.current?.scrollIntoView({ block: "nearest" });
-  }, [follow, filtered]);
+  }, [follow, logs]);
 
   return (
     <div className="overflow-hidden rounded-md border bg-[#090c10] text-slate-200">
@@ -45,14 +41,15 @@ export function DeploymentLogViewer() {
         </div>
         <div className="flex items-center gap-3">
           <Select
-            value={limit}
-            onValueChange={(value) => value && setLimit(value)}
+            value={String(limit)}
+            onValueChange={(value) => value && setLimit(Number(value))}
           >
             <SelectTrigger className="h-8 border-white/10 bg-white/5 text-slate-200">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="100">Last 100</SelectItem>
+              <SelectItem value="200">Last 200</SelectItem>
               <SelectItem value="500">Last 500</SelectItem>
               <SelectItem value="1000">Last 1000</SelectItem>
             </SelectContent>
@@ -64,39 +61,36 @@ export function DeploymentLogViewer() {
         </div>
       </div>
       <div className="max-h-[430px] min-h-72 overflow-auto p-3 font-mono text-xs leading-6">
-        {filtered.length ? (
-          filtered.map((line, index) => {
-            const isWarning = line.includes("WARN");
-            const isError = line.includes("ERROR");
-            return (
-              <div
-                key={`${index}-${line}`}
-                className={
-                  isError
-                    ? "text-red-300"
-                    : isWarning
-                      ? "text-amber-300"
-                      : line.includes("INFO")
-                        ? "text-slate-300"
-                        : "text-slate-400"
-                }
-              >
-                <span className="mr-3 select-none text-slate-700">
-                  {String(index + 1).padStart(3, "0")}
-                </span>
-                {line}
-              </div>
-            );
-          })
+        {logsQuery.isLoading ? (
+          <div className="flex min-h-60 items-center justify-center text-slate-500">
+            <LoaderCircle className="mr-2 size-4 animate-spin" /> Loading logs
+          </div>
+        ) : logsQuery.isError ? (
+          <div className="flex min-h-60 items-center justify-center text-red-300">
+            <TriangleAlert className="mr-2 size-4" /> {logsQuery.error.message}
+          </div>
+        ) : logs.length ? (
+          logs.map((line) => (
+            <div
+              key={line.sequence}
+              className={line.stream === "stderr" ? "text-amber-300" : "text-slate-300"}
+            >
+              <span className="mr-3 select-none text-slate-600">
+                {String(line.sequence).padStart(4, "0")}
+              </span>
+              <span className="mr-3 text-slate-500">{formatDateTime(line.timestamp)}</span>
+              {line.message}
+            </div>
+          ))
         ) : (
           <div className="py-12 text-center text-slate-500">
-            No log lines match the query.
+            {query ? "No log lines match the query." : "No runtime logs reported yet."}
           </div>
         )}
         <div ref={endRef} />
       </div>
       <div className="flex items-center justify-between border-t border-white/10 bg-[#11161d] px-3 py-1.5 font-mono text-[10px] text-slate-500">
-        <span>{filtered.length} visible lines</span>
+        <span>{logs.length} visible lines</span>
         <span>runtime stream / follow={String(follow)}</span>
       </div>
     </div>

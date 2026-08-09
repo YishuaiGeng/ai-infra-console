@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_infra_api.db.models import (
     GPU,
+    Deployment,
+    DeploymentGPU,
     GPUMetric,
     GPUProcess,
     ModelFile,
@@ -152,7 +154,11 @@ def _gpu_response(
     gpu: GPU,
     metric: GPUMetric | None,
     processes: list[GPUProcess],
+    allocation: tuple[uuid.UUID, str] | None = None,
 ) -> GPUResponse:
+    gpu_status = _gpu_status(server, gpu, metric, processes)
+    if allocation is not None and gpu_status == "available":
+        gpu_status = "active"
     return GPUResponse(
         id=gpu.id,
         server=_server_reference(server),
@@ -160,7 +166,7 @@ def _gpu_response(
         uuid=gpu.uuid,
         vendor=gpu.vendor,
         name=gpu.name,
-        status=_gpu_status(server, gpu, metric, processes),
+        status=gpu_status,
         utilization=metric.utilization if metric else None,
         memory_used=metric.memory_used if metric else None,
         memory_total=gpu.memory_total,
@@ -172,6 +178,8 @@ def _gpu_response(
         cuda_version=gpu.cuda_version,
         metric_collected_at=metric.timestamp if metric else None,
         process_count=len(processes),
+        deployment_id=allocation[0] if allocation else None,
+        deployment_name=allocation[1] if allocation else None,
     )
 
 
@@ -235,6 +243,27 @@ async def _model_counts(session: AsyncSession) -> dict[uuid.UUID, int]:
     return {server_id: int(count) for server_id, count in rows}
 
 
+async def _deployment_allocations(
+    session: AsyncSession,
+) -> dict[uuid.UUID, tuple[uuid.UUID, str]]:
+    rows = (
+        await session.execute(
+            select(DeploymentGPU.gpu_id, Deployment.id, Deployment.name)
+            .join(Deployment, Deployment.id == DeploymentGPU.deployment_id)
+            .where(
+                Deployment.status.in_(
+                    ("queued", "starting", "running", "stopping", "restarting", "deleting")
+                )
+            )
+            .order_by(DeploymentGPU.gpu_id, Deployment.created_at, Deployment.id)
+        )
+    ).all()
+    allocations: dict[uuid.UUID, tuple[uuid.UUID, str]] = {}
+    for gpu_id, deployment_id, deployment_name in rows:
+        allocations.setdefault(gpu_id, (deployment_id, deployment_name))
+    return allocations
+
+
 async def list_server_summaries(
     session: AsyncSession,
     *,
@@ -243,12 +272,19 @@ async def list_server_summaries(
     await mark_stale_servers_offline(session, threshold_seconds=offline_seconds)
     servers, metrics, gpus, gpu_metrics, processes = await _load_rows(session)
     model_counts = await _model_counts(session)
+    allocations = await _deployment_allocations(session)
     servers_by_id = {server.id: server for server in servers}
     responses_by_server: dict[uuid.UUID, list[GPUResponse]] = defaultdict(list)
     for gpu in gpus:
         server = servers_by_id[gpu.server_id]
         responses_by_server[gpu.server_id].append(
-            _gpu_response(server, gpu, gpu_metrics.get(gpu.id), processes.get(gpu.id, []))
+            _gpu_response(
+                server,
+                gpu,
+                gpu_metrics.get(gpu.id),
+                processes.get(gpu.id, []),
+                allocations.get(gpu.id),
+            )
         )
     return [
         _summary_response(
@@ -272,8 +308,15 @@ async def get_server_detail(
     if not servers:
         return None
     server = servers[0]
+    allocations = await _deployment_allocations(session)
     gpu_responses = [
-        _gpu_response(server, gpu, gpu_metrics.get(gpu.id), processes.get(gpu.id, []))
+        _gpu_response(
+            server,
+            gpu,
+            gpu_metrics.get(gpu.id),
+            processes.get(gpu.id, []),
+            allocations.get(gpu.id),
+        )
         for gpu in gpus
     ]
     process_responses = [
@@ -305,12 +348,14 @@ async def list_gpus(
     await mark_stale_servers_offline(session, threshold_seconds=offline_seconds)
     servers, _, gpus, gpu_metrics, processes = await _load_rows(session)
     servers_by_id = {server.id: server for server in servers}
+    allocations = await _deployment_allocations(session)
     return [
         _gpu_response(
             servers_by_id[gpu.server_id],
             gpu,
             gpu_metrics.get(gpu.id),
             processes.get(gpu.id, []),
+            allocations.get(gpu.id),
         )
         for gpu in gpus
     ]

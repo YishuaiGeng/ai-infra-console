@@ -154,6 +154,11 @@ def agent_container_arguments(token: str) -> tuple[list[str], dict[str, str]]:
         "AI_INFRA_AGENT_ENABLE_MODEL_MUTATIONS": "true",
         "AI_INFRA_AGENT_MODEL_TASK_PROGRESS_SECONDS": "0.25",
         "AI_INFRA_AGENT_MODEL_DOWNLOAD_FIXTURE_SOURCE": "/provider-fixtures",
+        "AI_INFRA_AGENT_ENABLE_DEPLOYMENTS": "true",
+        "AI_INFRA_AGENT_DEPLOYMENT_OPERATION_PROGRESS_SECONDS": "0.5",
+        "AI_INFRA_AGENT_DEPLOYMENT_RECONCILE_SECONDS": "1",
+        "AI_INFRA_AGENT_DEPLOYMENT_RUNTIME_FIXTURE": "true",
+        "AI_INFRA_AGENT_DEPLOYMENT_GPU_FIXTURE": "true",
     }
     for name, value in agent_environment.items():
         arguments.extend(("--env", name if value is None else f"{name}={value}"))
@@ -329,6 +334,54 @@ def wait_for_model_installation(
             return match
         time.sleep(0.5)
     raise TimeoutError(f"Model {source_id} did not reach inventory state {status}")
+
+
+def wait_for_deployment(
+    base_url: str,
+    token: str,
+    deployment_id: str,
+    status: str,
+    *,
+    health_status: str | None = None,
+    timeout: float = 45,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    last: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        last = dict(
+            request_json(f"{base_url}/api/v1/deployments/{deployment_id}", token=token)
+        )
+        if last.get("status") == "failed":
+            raise RuntimeError(
+                f"Deployment failed: {last.get('error_code')}: {last.get('error_message')}"
+            )
+        if last.get("status") == status and (
+            health_status is None or last.get("health_status") == health_status
+        ):
+            return last
+        time.sleep(0.5)
+    raise TimeoutError(
+        f"Deployment did not reach {status}/{health_status or '*'}; last state: {last}"
+    )
+
+
+def wait_for_deployment_absence(
+    base_url: str,
+    token: str,
+    deployment_id: str,
+    *,
+    timeout: float = 45,
+) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        status = request_status(
+            f"{base_url}/api/v1/deployments/{deployment_id}",
+            token=token,
+        )
+        if status == 404:
+            return
+        time.sleep(0.5)
+    raise TimeoutError("Deployment was not removed after the delete operation")
 
 
 def synthetic_snapshot(
@@ -583,7 +636,21 @@ def verify_web_session(
     )
     with urllib.request.urlopen(targets_request, timeout=10) as response:
         targets = list(json.loads(response.read().decode("utf-8")))
+    deployment_targets_request = urllib.request.Request(
+        f"{web_url}/api/deployment-targets",
+        headers={"cookie": f"aic_session={morsel.value}"},
+    )
+    with urllib.request.urlopen(deployment_targets_request, timeout=10) as response:
+        deployment_targets = list(json.loads(response.read().decode("utf-8")))
+    deployments_request = urllib.request.Request(
+        f"{web_url}/api/deployments",
+        headers={"cookie": f"aic_session={morsel.value}"},
+    )
+    with urllib.request.urlopen(deployments_request, timeout=10) as response:
+        deployments = list(json.loads(response.read().decode("utf-8")))
     return {
+        "deployment_targets": deployment_targets,
+        "deployments": deployments,
         "downloads": downloads,
         "models": models,
         "summary": summary,
@@ -834,8 +901,8 @@ def main() -> None:
         "server_count": 3,
         "online_server_count": 2,
         "offline_server_count": 1,
-        "gpu_count": 5,
-        "available_gpu_count": 3,
+        "gpu_count": 6,
+        "available_gpu_count": 4,
     }
     if any(infrastructure.get(key) != value for key, value in expected_summary.items()):
         raise RuntimeError("Infrastructure summary does not match the Phase 3 fixtures")
@@ -1122,6 +1189,243 @@ def main() -> None:
                 "missing",
             ),
         )
+
+        deployment_targets = run_check(
+            "deployment target discovery",
+            lambda: request_json(f"{base_url}/api/v1/deployment-targets", token=viewer_token),
+        )
+        if (
+            not isinstance(deployment_targets, list)
+            or len(deployment_targets) != 1
+            or deployment_targets[0].get("server", {}).get("id")
+            != registration["server_id"]
+            or deployment_targets[0].get("docker_available") is not True
+        ):
+            raise RuntimeError("Deployment targets escaped the mutable Agent boundary")
+        deployment_model = next(
+            (
+                item
+                for item in deployment_targets[0].get("model_files", [])
+                if item.get("format") == "safetensors"
+            ),
+            None,
+        )
+        deployment_gpu = next(iter(deployment_targets[0].get("gpus", [])), None)
+        if not isinstance(deployment_model, dict) or not isinstance(deployment_gpu, dict):
+            raise RuntimeError("Deployment target is missing the fixture model or GPU")
+        deployment_payload = {
+            "name": "qwen3-8b-compose",
+            "model_file_id": deployment_model["model_file_id"],
+            "selection_mode": "manual",
+            "gpu_ids": [deployment_gpu["id"]],
+            "port": 8001,
+            "config": {
+                "tensor_parallel_size": 1,
+                "gpu_memory_utilization": 0.9,
+                "max_model_length": 32768,
+                "data_type": "auto",
+                "trust_remote_code": False,
+                "extra_arguments": ["--enable-prefix-caching", "--max-num-seqs", "128"],
+            },
+        }
+        viewer_deployment_status = run_check(
+            "Viewer deployment mutation boundary",
+            lambda: request_status(
+                f"{base_url}/api/v1/deployments",
+                method="POST",
+                payload=deployment_payload,
+                token=viewer_token,
+            ),
+        )
+        if viewer_deployment_status != 403:
+            raise RuntimeError("Viewer was allowed to create a deployment")
+        queued_deployment: dict[str, Any] = {}
+
+        def queue_deployment() -> None:
+            queued_deployment.update(
+                request_json(
+                    f"{base_url}/api/v1/deployments",
+                    method="POST",
+                    payload=deployment_payload,
+                    token=admin_token,
+                )
+            )
+
+        deployment_sse_event = run_check(
+            "deployment create SSE event",
+            lambda: verify_sse_event(
+                base_url,
+                viewer_token,
+                str(registration["server_id"]),
+                queue_deployment,
+                expected_kind="deployment.updated",
+            ),
+        )
+        if queued_deployment.get("status") != "queued":
+            raise RuntimeError("Deployment was not queued")
+        deployment_id = str(queued_deployment["id"])
+        running_deployment = run_check(
+            "deployment create, reconcile, and health",
+            lambda: wait_for_deployment(
+                base_url,
+                viewer_token,
+                deployment_id,
+                "running",
+                health_status="healthy",
+            ),
+        )
+        if (
+            running_deployment.get("gpus", [{}])[0].get("id") != deployment_gpu["id"]
+            or not str(running_deployment.get("endpoint", "")).endswith(":8001/v1")
+        ):
+            raise RuntimeError("Deployment placement or endpoint is incorrect")
+        deployment_logs = run_check(
+            "deployment log forwarding",
+            lambda: request_json(
+                f"{base_url}/api/v1/deployments/{deployment_id}/logs?limit=20",
+                token=viewer_token,
+            ),
+        )
+        if not any(
+            "fixture vLLM runtime is ready" in item.get("message", "")
+            for item in deployment_logs
+        ):
+            raise RuntimeError("Deployment logs did not converge from the Agent")
+        allocated_gpus = run_check(
+            "deployment GPU allocation overlay",
+            lambda: request_json(f"{base_url}/api/v1/gpus", token=viewer_token),
+        )
+        allocated_gpu = next(
+            (item for item in allocated_gpus if item.get("id") == deployment_gpu["id"]),
+            None,
+        )
+        if (
+            not isinstance(allocated_gpu, dict)
+            or allocated_gpu.get("status") != "active"
+            or allocated_gpu.get("deployment_id") != deployment_id
+        ):
+            raise RuntimeError("GPU inventory did not expose the active deployment")
+        repeated_start = run_check(
+            "idempotent running start",
+            lambda: request_json(
+                f"{base_url}/api/v1/deployments/{deployment_id}/start",
+                method="POST",
+                token=admin_token,
+            ),
+        )
+        if repeated_start.get("status") != "running":
+            raise RuntimeError("Repeated start changed a running deployment")
+        run_check(
+            "deployment stop request",
+            lambda: request_json(
+                f"{base_url}/api/v1/deployments/{deployment_id}/stop",
+                method="POST",
+                token=admin_token,
+            ),
+        )
+        stopped_deployment = run_check(
+            "deployment stop convergence",
+            lambda: wait_for_deployment(
+                base_url, viewer_token, deployment_id, "stopped"
+            ),
+        )
+        if stopped_deployment.get("health_status") != "unknown":
+            raise RuntimeError("Stopped deployment retained a live health state")
+        released_gpus = request_json(f"{base_url}/api/v1/gpus", token=viewer_token)
+        released_gpu = next(
+            (item for item in released_gpus if item.get("id") == deployment_gpu["id"]),
+            None,
+        )
+        if not isinstance(released_gpu, dict) or released_gpu.get("deployment_id") is not None:
+            raise RuntimeError("Stopped deployment retained its runtime GPU allocation")
+        run_check(
+            "deployment start request",
+            lambda: request_json(
+                f"{base_url}/api/v1/deployments/{deployment_id}/start",
+                method="POST",
+                token=admin_token,
+            ),
+        )
+        run_check(
+            "deployment start convergence",
+            lambda: wait_for_deployment(
+                base_url,
+                viewer_token,
+                deployment_id,
+                "running",
+                health_status="healthy",
+            ),
+        )
+        run_check(
+            "deployment restart request",
+            lambda: request_json(
+                f"{base_url}/api/v1/deployments/{deployment_id}/restart",
+                method="POST",
+                token=admin_token,
+            ),
+        )
+        run_check(
+            "deployment restart convergence",
+            lambda: wait_for_deployment(
+                base_url,
+                viewer_token,
+                deployment_id,
+                "running",
+                health_status="healthy",
+            ),
+        )
+        bad_deployment_delete = run_check(
+            "deployment delete confirmation boundary",
+            lambda: request_status(
+                f"{base_url}/api/v1/deployments/{deployment_id}",
+                method="DELETE",
+                payload={"confirmation": "wrong-deployment"},
+                token=admin_token,
+            ),
+        )
+        if bad_deployment_delete != 422:
+            raise RuntimeError("Deployment deletion accepted an incorrect confirmation")
+        viewer_deployment_delete = run_check(
+            "Viewer deployment deletion boundary",
+            lambda: request_status(
+                f"{base_url}/api/v1/deployments/{deployment_id}",
+                method="DELETE",
+                payload={"confirmation": "qwen3-8b-compose"},
+                token=viewer_token,
+            ),
+        )
+        if viewer_deployment_delete != 403:
+            raise RuntimeError("Viewer was allowed to delete a deployment")
+        run_check(
+            "deployment delete request",
+            lambda: request_json(
+                f"{base_url}/api/v1/deployments/{deployment_id}",
+                method="DELETE",
+                payload={"confirmation": "qwen3-8b-compose"},
+                token=admin_token,
+            ),
+        )
+        run_check(
+            "deployment delete convergence",
+            lambda: wait_for_deployment_absence(
+                base_url, viewer_token, deployment_id
+            ),
+        )
+        preserved_model = run_check(
+            "deployment delete preserves model installation",
+            lambda: wait_for_model_installation(
+                base_url,
+                viewer_token,
+                str(registration["server_id"]),
+                str(deployment_model["source_id"]),
+                "discovered",
+            ),
+        )
+        if (
+            preserved_model.get("id") != deployment_model.get("model_file_id")
+            or preserved_model.get("model_id") != deployment_model.get("id")
+        ):
+            raise RuntimeError("Deployment deletion changed the model installation")
     finally:
         run_check("model task Agent shutdown", lambda: stop_agent_runtime(agent_runtime))
 
@@ -1148,6 +1452,8 @@ def main() -> None:
         or len(web_result["targets"]) != 1
     ):
         raise RuntimeError("Web BFF download workflow differs from the Central API")
+    if len(web_result["deployment_targets"]) != 1 or web_result["deployments"]:
+        raise RuntimeError("Web BFF deployment workflow differs from the Central API")
 
     run_check(
         "Agent token revocation",
@@ -1197,6 +1503,14 @@ def main() -> None:
                     "delete_status": completed_delete["status"],
                     "sse_kind": model_sse_event["kind"],
                     "viewer_read_verified": True,
+                    "web_bff_verified": True,
+                },
+                "deployments": {
+                    "delete_verified": True,
+                    "health": running_deployment["health_status"],
+                    "logs_verified": True,
+                    "sse_kind": deployment_sse_event["kind"],
+                    "viewer_mutation_denied": True,
                     "web_bff_verified": True,
                 },
                 "readiness": readiness,

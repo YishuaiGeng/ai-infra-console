@@ -71,6 +71,7 @@ class AgentSettings(BaseSettings):
     deployment_log_max_lines: int = Field(default=200, ge=10, le=1_000)
     deployment_log_max_bytes: int = Field(default=262_144, ge=4_096, le=4_194_304)
     deployment_runtime_fixture: bool = False
+    deployment_gpu_fixture: bool = False
 
     @field_validator("allowed_model_directories")
     @classmethod
@@ -105,6 +106,8 @@ class AgentSettings(BaseSettings):
             raise ValueError("fixture model downloads cannot be enabled in production")
         if self.environment == "production" and self.deployment_runtime_fixture:
             raise ValueError("fixture deployment runtime cannot be enabled in production")
+        if self.environment == "production" and self.deployment_gpu_fixture:
+            raise ValueError("fixture deployment GPU cannot be enabled in production")
         if self.enable_model_mutations and not self.allowed_model_directories:
             raise ValueError("model mutations require at least one allowed model directory")
         if self.enable_deployments and not self.allowed_model_directories:

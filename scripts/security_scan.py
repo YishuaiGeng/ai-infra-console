@@ -18,6 +18,36 @@ PHASE_5_WEB_PATHS = (
     ROOT / "apps" / "web" / "src" / "hooks" / "use-downloads.ts",
     ROOT / "apps" / "web" / "src" / "lib" / "api" / "downloads.ts",
 )
+PHASE_6_WEB_PATHS = (
+    ROOT / "apps" / "web" / "src" / "app" / "api" / "deployment-targets",
+    ROOT / "apps" / "web" / "src" / "app" / "api" / "deployments",
+    ROOT / "apps" / "web" / "src" / "app" / "(console)" / "deployments",
+    ROOT / "apps" / "web" / "src" / "components" / "deployment" / "deploy-model-dialog.tsx",
+    ROOT / "apps" / "web" / "src" / "components" / "deployment" / "deployment-actions.tsx",
+    ROOT
+    / "apps"
+    / "web"
+    / "src"
+    / "components"
+    / "deployment"
+    / "deployment-log-viewer.tsx",
+    ROOT
+    / "apps"
+    / "web"
+    / "src"
+    / "components"
+    / "deployment"
+    / "deployment-metrics.tsx",
+    ROOT / "apps" / "web" / "src" / "features" / "deployments",
+    ROOT / "apps" / "web" / "src" / "hooks" / "use-deployments.ts",
+    ROOT / "apps" / "web" / "src" / "lib" / "api" / "deployments.ts",
+)
+DEPLOYMENT_CONFIG_FILES = (
+    ROOT / "compose.yaml",
+    ROOT / ".github" / "workflows" / "ci.yml",
+    ROOT / "deploy" / "systemd" / "agent.service",
+    ROOT / "deploy" / "systemd" / "agent.env.example",
+)
 MUTABLE_ALLOWLIST_FILES = (
     ROOT / ".env.example",
     ROOT / "compose.yaml",
@@ -68,6 +98,18 @@ def main() -> None:
             if "@/mocks" in content:
                 relative = path.relative_to(ROOT).as_posix()
                 failures.append(f"Phase 5 Web source imports mock data: {relative}")
+
+    for root in PHASE_6_WEB_PATHS:
+        for path in source_files(root):
+            content = path.read_text(encoding="utf-8")
+            if "@/mocks" in content:
+                relative = path.relative_to(ROOT).as_posix()
+                failures.append(f"Phase 6 Web source imports mock data: {relative}")
+
+    for path in DEPLOYMENT_CONFIG_FILES:
+        if path.exists() and "/var/run/docker.sock" in path.read_text(encoding="utf-8"):
+            relative = path.relative_to(ROOT).as_posix()
+            failures.append(f"Docker socket is exposed by deployment config: {relative}")
 
     for path in MUTABLE_ALLOWLIST_FILES:
         if not path.exists():

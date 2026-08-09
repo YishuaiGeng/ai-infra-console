@@ -1,60 +1,44 @@
-"use client";
+import type { Deployment } from "@/types";
+import { formatDateTime } from "@/lib/format";
+import { StatusBadge } from "@/components/shared/status-badge";
 
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+export function DeploymentMetrics({ deployment }: { deployment: Deployment }) {
+  const values = [
+    ["Health", <StatusBadge key="health" status={deployment.healthStatus} />],
+    [
+      "Probe latency",
+      <span key="latency" className="font-mono text-sm font-medium">
+        {deployment.healthLatencyMs === null
+          ? "--"
+          : `${Math.round(deployment.healthLatencyMs)} ms`}
+      </span>,
+    ],
+    [
+      "Last health probe",
+      <span key="health-time" className="font-mono text-xs">
+        {deployment.lastHealthCheckedAt
+          ? formatDateTime(deployment.lastHealthCheckedAt)
+          : "Not reported"}
+      </span>,
+    ],
+    [
+      "Last reconciliation",
+      <span key="reconciled" className="font-mono text-xs">
+        {deployment.lastReconciledAt
+          ? formatDateTime(deployment.lastReconciledAt)
+          : "Not reported"}
+      </span>,
+    ],
+  ];
 
-const metrics = [
-  { time: "14:00", throughput: 28, latency: 164 },
-  { time: "14:10", throughput: 31, latency: 151 },
-  { time: "14:20", throughput: 29, latency: 172 },
-  { time: "14:30", throughput: 38, latency: 138 },
-  { time: "14:40", throughput: 42, latency: 126 },
-  { time: "14:50", throughput: 36, latency: 142 },
-  { time: "15:00", throughput: 44, latency: 121 },
-];
-
-export function DeploymentMetrics() {
   return (
-    <div className="h-72 w-full p-3">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={metrics} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey="time" fontSize={11} tickLine={false} axisLine={false} />
-          <YAxis fontSize={11} tickLine={false} axisLine={false} />
-          <Tooltip
-            contentStyle={{
-              background: "var(--popover)",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              color: "var(--popover-foreground)",
-              fontSize: 12,
-            }}
-          />
-          <Line
-            type="monotone"
-            dataKey="throughput"
-            name="Throughput (tok/s)"
-            stroke="var(--chart-2)"
-            strokeWidth={2}
-            dot={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="latency"
-            name="Latency (ms)"
-            stroke="var(--chart-1)"
-            strokeWidth={2}
-            dot={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+    <div className="grid sm:grid-cols-2 xl:grid-cols-4">
+      {values.map(([label, value]) => (
+        <div key={String(label)} className="border-b p-4 sm:border-r xl:border-b-0">
+          <div className="text-xs font-medium text-muted-foreground">{label}</div>
+          <div className="mt-2">{value}</div>
+        </div>
+      ))}
     </div>
   );
 }

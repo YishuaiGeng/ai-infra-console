@@ -14,6 +14,8 @@ import {
   useInfrastructureSummary,
   useServers,
 } from "@/hooks/use-infrastructure";
+import { useDeployments } from "@/hooks/use-deployments";
+import { useDownloads } from "@/hooks/use-downloads";
 import { bytesToGiB } from "@/lib/api/infrastructure";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { PageContainer } from "@/components/layout/page-container";
@@ -39,11 +41,24 @@ export function DashboardPage() {
   const summaryQuery = useInfrastructureSummary();
   const serversQuery = useServers();
   const gpusQuery = useGpus();
+  const deploymentsQuery = useDeployments();
+  const downloadsQuery = useDownloads();
 
-  if (summaryQuery.isPending || serversQuery.isPending || gpusQuery.isPending) {
+  if (
+    summaryQuery.isPending ||
+    serversQuery.isPending ||
+    gpusQuery.isPending ||
+    deploymentsQuery.isPending ||
+    downloadsQuery.isPending
+  ) {
     return <PageLoadingSkeleton />;
   }
-  const failed = summaryQuery.error ?? serversQuery.error ?? gpusQuery.error;
+  const failed =
+    summaryQuery.error ??
+    serversQuery.error ??
+    gpusQuery.error ??
+    deploymentsQuery.error ??
+    downloadsQuery.error;
   if (failed) {
     return (
       <PageContainer>
@@ -58,18 +73,31 @@ export function DashboardPage() {
             void summaryQuery.refetch();
             void serversQuery.refetch();
             void gpusQuery.refetch();
+            void deploymentsQuery.refetch();
+            void downloadsQuery.refetch();
           }}
         />
       </PageContainer>
     );
   }
-  if (!summaryQuery.data || !serversQuery.data || !gpusQuery.data) {
+  if (
+    !summaryQuery.data ||
+    !serversQuery.data ||
+    !gpusQuery.data ||
+    !deploymentsQuery.data ||
+    !downloadsQuery.data
+  ) {
     return <PageLoadingSkeleton />;
   }
 
   const summary = summaryQuery.data;
   const servers = serversQuery.data;
   const gpus = gpusQuery.data;
+  const deployments = deploymentsQuery.data;
+  const runningDeployments = deployments.filter((item) => item.status === "running");
+  const activeDownloads = downloadsQuery.data.filter((item) =>
+    ["queued", "downloading", "cancelling"].includes(item.status),
+  );
   const usedMemory = bytesToGiB(summary.gpu_memory_used) ?? 0;
   const totalMemory = bytesToGiB(summary.gpu_memory_total) ?? 0;
   const memoryPercent = totalMemory > 0 ? (usedMemory / totalMemory) * 100 : 0;
@@ -119,15 +147,15 @@ export function DashboardPage() {
         />
         <MetricCard
           label="Running Models"
-          value={0}
-          detail="No deployment records"
+          value={runningDeployments.length}
+          detail={`${deployments.length} configured`}
           icon={Waypoints}
           accent="blue"
         />
         <MetricCard
           label="Download Tasks"
-          value={0}
-          detail="No active transfers"
+          value={activeDownloads.length}
+          detail={`${downloadsQuery.data.length} recorded`}
           icon={Download}
         />
       </div>
@@ -221,11 +249,48 @@ export function DashboardPage() {
           title="Running Models"
           description="Deployment runtime records"
         >
-          <EmptyState
-            icon={Waypoints}
-            title="No model runtimes"
-            message="Running deployments will appear here after the deployment lifecycle phase is enabled."
-          />
+          {runningDeployments.length ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Deployment</TableHead>
+                    <TableHead>Server</TableHead>
+                    <TableHead>Health</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {runningDeployments.map((deployment) => (
+                    <TableRow key={deployment.id}>
+                      <TableCell>
+                        <Link
+                          href={`/deployments/${deployment.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {deployment.name}
+                        </Link>
+                        <div className="max-w-48 truncate text-[11px] text-muted-foreground">
+                          {deployment.model.displayName}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {deployment.server.name}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={deployment.healthStatus} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <EmptyState
+              icon={Waypoints}
+              title="No model runtimes"
+              message="Running deployments will appear here after a runtime becomes healthy."
+            />
+          )}
         </SectionPanel>
       </div>
     </PageContainer>

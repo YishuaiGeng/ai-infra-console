@@ -63,3 +63,18 @@ def test_model_directories_reject_relative_overlap_and_unknown_default(
             allowed_model_directories=(root,),
             default_model_directory=Path(str(tmp_path)) / "other",
         )
+
+
+@pytest.mark.parametrize(
+    "fixture_field",
+    ["deployment_runtime_fixture", "deployment_gpu_fixture"],
+)
+def test_production_rejects_deployment_fixtures(fixture_field: str) -> None:
+    with pytest.raises(ValidationError, match="fixture deployment"):
+        AgentSettings.model_validate(
+            {
+                "environment": "production",
+                "central_url": "https://central.example.com",
+                fixture_field: True,
+            }
+        )

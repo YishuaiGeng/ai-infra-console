@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -75,6 +76,8 @@ class GPUResponse(BaseModel):
     cuda_version: str | None
     metric_collected_at: datetime | None
     process_count: int
+    deployment_id: UUID | None = None
+    deployment_name: str | None = None
 
 
 class ServerSummaryResponse(BaseModel):

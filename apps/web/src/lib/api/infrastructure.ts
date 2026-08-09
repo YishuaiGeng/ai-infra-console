@@ -64,6 +64,8 @@ export const gpuDtoSchema = z.object({
   cuda_version: nullableString,
   metric_collected_at: nullableString,
   process_count: z.number().int(),
+  deployment_id: nullableString.optional().default(null),
+  deployment_name: nullableString.optional().default(null),
 });
 
 export const processDtoSchema = z.object({
@@ -136,6 +138,8 @@ export const infrastructureEventSchema = z.object({
     "server.offline",
     "model.inventory.updated",
     "model.download.updated",
+    "deployment.updated",
+    "deployment.logs.updated",
   ]),
   server_id: z.string(),
   occurred_at: z.string(),
@@ -168,7 +172,10 @@ export function infrastructureEventQueryKeys(
   if (kind === "model.inventory.updated") {
     return [...keys, ["models"], ["models", "summary"], ["downloads"]];
   }
-  return kind === "model.download.updated" ? [...keys, ["downloads"]] : keys;
+  if (kind === "model.download.updated") return [...keys, ["downloads"]];
+  return kind.startsWith("deployment.")
+    ? [...keys, ["deployments"], ["models"], ["models", "summary"]]
+    : keys;
 }
 
 const bytesPerGiB = 1024 ** 3;
@@ -257,10 +264,11 @@ export function mapGpu(dto: GpuDto): GPU {
     powerWatts: dto.power_usage,
     powerLimitWatts: dto.power_limit ?? 0,
     workload:
-      dto.process_count > 0
+      dto.deployment_name ??
+      (dto.process_count > 0
         ? `${dto.process_count} active process${dto.process_count === 1 ? "" : "es"}`
-        : null,
-    deploymentId: null,
+        : null),
+    deploymentId: dto.deployment_id,
   };
 }
 

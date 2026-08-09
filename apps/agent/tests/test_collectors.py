@@ -127,3 +127,20 @@ def test_snapshot_orchestrator_combines_collectors(monkeypatch: object) -> None:
     assert snapshot.host.hostname == host.hostname
     assert snapshot.gpus == []
     assert snapshot.gpu_collector.available is False
+
+
+def test_snapshot_test_fixtures_report_docker_and_gpu() -> None:
+    from ai_infra_agent.config import AgentSettings
+
+    snapshot = collect_snapshot(
+        AgentSettings(
+            environment="test",
+            deployment_runtime_fixture=True,
+            deployment_gpu_fixture=True,
+        )
+    )
+
+    assert snapshot.host.runtimes.docker.available is True
+    assert snapshot.host.runtimes.docker.version == "fixture"
+    assert snapshot.gpu_collector.available is True
+    assert snapshot.gpus[0].uuid == "GPU-ai-infra-fixture-0"

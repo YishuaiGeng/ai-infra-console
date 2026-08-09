@@ -14,11 +14,20 @@ export type GPUStatus =
   | "unavailable";
 
 export type DeploymentStatus =
+  | "queued"
   | "starting"
   | "running"
   | "stopping"
   | "stopped"
+  | "restarting"
+  | "deleting"
   | "failed"
+  | "unknown";
+
+export type DeploymentHealth =
+  | "healthy"
+  | "degraded"
+  | "unhealthy"
   | "unknown";
 
 export type DownloadStatus =
@@ -244,24 +253,89 @@ export interface DeploymentConfig {
   maxModelLength: number;
   dataType: string;
   trustRemoteCode: boolean;
-  extraArguments: string;
+  extraArguments: string[];
+}
+
+export interface DeploymentModel {
+  id: string;
+  modelFileId: string;
+  source: string;
+  sourceId: string;
+  name: string;
+  displayName: string;
+  path: string;
+  format: string | null;
+  quantization: string | null;
+  revision: string | null;
+  sizeBytes: number | null;
+}
+
+export interface DeploymentGPU {
+  id: string;
+  index: number;
+  uuid: string;
+  name: string;
+  status: string;
+  memoryTotal: number;
+  memoryUsed: number | null;
+  utilization: number | null;
+}
+
+export interface DeploymentOperation {
+  id: string;
+  action: "create" | "start" | "stop" | "restart" | "delete";
+  status: "queued" | "running" | "completed" | "failed";
+  generation: number;
+  attemptCount: number;
+  errorCode: string | null;
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Deployment {
   id: string;
   name: string;
-  modelId: string;
-  serverId: string;
-  gpuIds: string[];
-  backend: "vLLM" | "Ollama";
+  model: DeploymentModel;
+  server: ModelServer;
+  gpus: DeploymentGPU[];
+  backend: "vllm";
+  selectionMode: "automatic" | "manual";
+  desiredState: "running" | "stopped" | "deleted";
+  generation: number;
   port: number;
   status: DeploymentStatus;
-  uptime: string;
   endpoint: string;
+  healthStatus: DeploymentHealth;
+  healthLatencyMs: number | null;
+  lastHealthCheckedAt: string | null;
+  lastReconciledAt: string | null;
+  uptimeSeconds: number | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  currentOperation: DeploymentOperation | null;
+  startedAt: string | null;
+  stoppedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  errorMessage?: string;
   config: DeploymentConfig;
+}
+
+export interface DeploymentTarget {
+  server: ModelServer;
+  dockerAvailable: boolean;
+  dockerVersion: string | null;
+  modelFiles: DeploymentModel[];
+  gpus: DeploymentGPU[];
+}
+
+export interface DeploymentLog {
+  sequence: number;
+  timestamp: string;
+  stream: "stdout" | "stderr";
+  message: string;
 }
 
 export interface DownloadTask {
