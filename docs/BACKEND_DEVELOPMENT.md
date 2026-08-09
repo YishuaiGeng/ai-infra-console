@@ -1,4 +1,4 @@
-# Backend Development
+﻿# Backend Development
 
 The Central API is implemented in `apps/api` with FastAPI, SQLAlchemy, Alembic, PostgreSQL, Redis, and RQ.
 
@@ -101,4 +101,4 @@ The Phase 1 health task is `ai_infra_api.worker.health_probe`. It exists only to
 
 ## Production target
 
-The Central stack is intended for `xiao-pro6000`. Host roles and mutation restrictions are documented in [Deployment Targets](./DEPLOYMENT_TARGETS.md). Keep SSH configuration, addresses, and credentials outside the repository.
+The Central stack is intended for `gpu-node-01`. Host roles and mutation restrictions are documented in [Deployment Targets](./DEPLOYMENT_TARGETS.md). Keep SSH configuration, addresses, and credentials outside the repository.

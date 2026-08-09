@@ -6,7 +6,7 @@
 - Entry gate: Phase 3 complete, including real infrastructure pages and GitHub Actions run `31207075696`
 - Exit gate: every acceptance item in this document has direct automated, browser, or runtime evidence
 - Scope boundary: discover and display model installations only; provider search, downloads, deletion, and deployments remain in Phases 5-6
-- Host boundary: model storage and scanning may target `xiao-cpu` and `xiao-pro6000`; do not modify `asus-2024` or `asus-4090`
+- Host boundary: model storage and scanning may target `storage-node-01` and `gpu-node-01`; do not modify `backup-node-01` or `backup-node-02`
 
 ## Technical decisions
 
@@ -121,7 +121,7 @@ Evidence:
 - [x] Add stable loading, no-configured-directory, no-model, inaccessible-root, stale-inventory, offline-server, and Ollama-unavailable states.
 - [x] Preserve search, filters, sorting, and column choices across background refreshes.
 - [x] Make long repository IDs and filesystem paths wrap or truncate with an accessible full-value affordance.
-- [x] Verify the same logical model appears as separate physical locations on `xiao-cpu` and `xiao-pro6000` fixtures.
+- [x] Verify the same logical model appears as separate physical locations on `storage-node-01` and `gpu-node-01` fixtures.
 - [x] Verify directory/default controls, model detail, server Model tab, and read-only Viewer behavior by keyboard or authorization test.
 - [x] Verify no text overflow, overlap, blank state, or hydration error through production build, responsive CSS checks, and the available 1280x720 browser viewport.
 
@@ -151,7 +151,7 @@ Evidence:
 - [x] Admin and Viewer authorization boundaries are enforced and inventory events refresh real queries.
 - [x] Phase 0-3 Web/API/Agent/Compose checks still pass.
 - [x] No download, deletion, deployment action, or arbitrary command interface was introduced early.
-- [x] No modification was made to `asus-2024` or `asus-4090`.
+- [x] No modification was made to `backup-node-01` or `backup-node-02`.
 
 ## Completion evidence
 
@@ -172,8 +172,8 @@ The browser fixture showed three logical models, four physical locations, 43 GB 
 multi-server Qwen aggregation, standalone GGUF and Ollama rows, an unavailable root, and no
 horizontal overflow. This desktop environment exposes a fixed browser viewport, so mobile coverage
 is backed by the responsive implementation and production build rather than a falsely claimed live
-resize. Host-specific deployment remains deferred: `xiao-pro6000` and `xiao-cpu` are the only future
-model-storage targets, and neither backup ASUS host was modified.
+resize. Host-specific deployment remains deferred: `gpu-node-01` and `storage-node-01` are the only future
+model-storage targets, and neither backup host was modified.
 
 Phase 5 may start because every item above is checked and backed by current command, browser, or
 runtime output.

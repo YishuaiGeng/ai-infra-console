@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
   catalogSearchDtoSchema,
@@ -12,11 +12,11 @@ import {
 
 const server = {
   id: "server-1",
-  name: "xiao-pro6000",
+  name: "gpu-node-01",
   status: "online",
   type: "local",
   host: null,
-  hostname: "xiao-pro6000",
+  hostname: "gpu-node-01",
 };
 
 describe("model download DTO mapping", () => {
@@ -84,7 +84,7 @@ describe("model download DTO mapping", () => {
       }),
     );
 
-    expect(target.server.host).toBe("xiao-pro6000");
+    expect(target.server.host).toBe("gpu-node-01");
     expect(target.directories[0]).toMatchObject({
       id: "directory-1",
       isDefault: true,

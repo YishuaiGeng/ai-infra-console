@@ -1,4 +1,4 @@
-# Phase 3: Server Integration
+﻿# Phase 3: Server Integration
 
 ## Status
 
@@ -6,7 +6,7 @@
 - Entry gate: Phase 2 complete, including Linux Agent registration/heartbeat/revocation evidence
 - Exit gate: every acceptance item in this document has direct automated, browser, or runtime evidence
 - Scope boundary: real server/GPU visibility only; model inventory, downloads, deployment actions, and historical charts remain in later phases
-- Host boundary: development may target `xiao-pro6000` or `xiao-cpu`; do not modify `asus-2024` or `asus-4090`
+- Host boundary: development may target `gpu-node-01` or `storage-node-01`; do not modify `backup-node-01` or `backup-node-02`
 
 ## Technical decisions
 
@@ -144,7 +144,7 @@ Evidence:
 - [x] API tokens remain in HttpOnly server-side session handling and are absent from browser storage/client payloads.
 - [x] Admin and Viewer authorization boundaries are enforced.
 - [x] Phase 0-2 Web/API/Agent/Compose checks still pass.
-- [x] No modification was made to `asus-2024` or `asus-4090`.
+- [x] No modification was made to `backup-node-01` or `backup-node-02`.
 
 ## Final evidence
 

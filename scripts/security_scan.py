@@ -1,4 +1,4 @@
-import re
+﻿import re
 import subprocess
 from pathlib import Path
 
@@ -54,7 +54,7 @@ MUTABLE_ALLOWLIST_FILES = (
     ROOT / ".github" / "workflows" / "ci.yml",
     ROOT / "deploy" / "systemd" / "agent.env.example",
 )
-BACKUP_HOSTS = ("asus-2024", "asus-4090")
+BACKUP_HOSTS = ("backup-node-01", "backup-node-02")
 
 
 def python_sources() -> list[Path]:

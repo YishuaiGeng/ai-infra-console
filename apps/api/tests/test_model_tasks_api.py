@@ -1,4 +1,4 @@
-import uuid
+﻿import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -91,7 +91,7 @@ async def provision(
     str,
     str,
 ]:
-    app.state.settings.mutable_server_names = ("xiao-pro6000", "xiao-cpu")
+    app.state.settings.mutable_server_names = ("gpu-node-01", "storage-node-01")
     admin = User(
         username="task-admin",
         password_hash=hash_password("unused-password"),
@@ -104,8 +104,8 @@ async def provision(
         role=UserRole.VIEWER,
         is_active=True,
     )
-    primary = Server(name="xiao-pro6000", status="pending", type="local", tags=[])
-    backup = Server(name="asus-4090", status="pending", type="local", tags=[])
+    primary = Server(name="gpu-node-01", status="pending", type="local", tags=[])
+    backup = Server(name="backup-node-02", status="pending", type="local", tags=[])
     async with app.state.database.session_factory() as session:
         session.add_all([admin, viewer, primary, backup])
         await session.flush()
@@ -126,14 +126,14 @@ async def provision(
     assert (
         await client.post(
             "/api/v1/agent/register",
-            json=snapshot("xiao-pro6000-host", "/data/models"),
+            json=snapshot("gpu-node-01-host", "/data/models"),
             headers=primary_headers,
         )
     ).status_code == 200
     assert (
         await client.post(
             "/api/v1/agent/register",
-            json=snapshot("asus-4090-host", "/backup/models"),
+            json=snapshot("backup-node-02-host", "/backup/models"),
             headers=backup_headers,
         )
     ).status_code == 200

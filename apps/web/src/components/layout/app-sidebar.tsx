@@ -115,9 +115,9 @@ function NavContent({
           <Braces className="size-4 shrink-0 text-muted-foreground" />
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium">Preview environment</div>
+              <div className="text-xs font-medium">Self-hosted console</div>
               <div className="font-mono text-[10px] text-muted-foreground">
-                local / v0.1.0
+                release / v0.1.0
               </div>
             </div>
           )}

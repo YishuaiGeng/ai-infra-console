@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
   mapModelDetail,
@@ -23,11 +23,11 @@ function installationDto() {
     metadata: { dtype: "bfloat16" },
     server: {
       id: "server-1",
-      name: "xiao-cpu",
+      name: "storage-node-01",
       status: "online",
       type: "local",
       host: null,
-      hostname: "xiao-cpu",
+      hostname: "storage-node-01",
     },
     directory_id: "directory-1",
     path: "/data/models/Qwen3-8B",
@@ -50,7 +50,7 @@ describe("model inventory DTO mapping", () => {
     );
 
     expect(mapped.displayName).toBe("Qwen/Qwen3-8B");
-    expect(mapped.server.host).toBe("xiao-cpu");
+    expect(mapped.server.host).toBe("storage-node-01");
     expect(mapped.quantization).toBe("Not reported");
     expect(mapped.sizeBytes).toBe(8_000);
   });
@@ -82,7 +82,7 @@ describe("model inventory DTO mapping", () => {
     const second = {
       ...installationDto(),
       id: "location-2",
-      server: { ...installationDto().server, id: "server-2", name: "xiao-pro6000" },
+      server: { ...installationDto().server, id: "server-2", name: "gpu-node-01" },
     };
     const mapped = mapModelDetail(
       modelDetailDtoSchema.parse({
@@ -100,8 +100,8 @@ describe("model inventory DTO mapping", () => {
     );
 
     expect(mapped.locations.map((item) => item.server.name)).toEqual([
-      "xiao-cpu",
-      "xiao-pro6000",
+      "storage-node-01",
+      "gpu-node-01",
     ]);
   });
 });

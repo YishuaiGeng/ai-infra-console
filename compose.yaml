@@ -2,9 +2,9 @@ name: ai-infra-console
 
 x-api-environment: &api-environment
   AI_INFRA_ENVIRONMENT: ${AI_INFRA_ENVIRONMENT:-development}
-  AI_INFRA_DATABASE_URL: postgresql+asyncpg://ai_infra:${AI_INFRA_POSTGRES_PASSWORD:-ai_infra_dev}@postgres:5432/ai_infra
+  AI_INFRA_DATABASE_URL: postgresql+asyncpg://ai_infra:${AI_INFRA_POSTGRES_PASSWORD:?Set AI_INFRA_POSTGRES_PASSWORD in .env}@postgres:5432/ai_infra
   AI_INFRA_REDIS_URL: redis://redis:6379/0
-  AI_INFRA_JWT_SECRET: ${AI_INFRA_JWT_SECRET:-development-only-change-me}
+  AI_INFRA_JWT_SECRET: ${AI_INFRA_JWT_SECRET:?Set AI_INFRA_JWT_SECRET in .env}
   AI_INFRA_BOOTSTRAP_ADMIN_USERNAME: ${AI_INFRA_BOOTSTRAP_ADMIN_USERNAME:-admin}
   AI_INFRA_BOOTSTRAP_ADMIN_PASSWORD: ${AI_INFRA_BOOTSTRAP_ADMIN_PASSWORD:-}
   AI_INFRA_ACCESS_TOKEN_MINUTES: ${AI_INFRA_ACCESS_TOKEN_MINUTES:-30}
@@ -30,7 +30,7 @@ services:
     environment:
       POSTGRES_DB: ai_infra
       POSTGRES_USER: ai_infra
-      POSTGRES_PASSWORD: ${AI_INFRA_POSTGRES_PASSWORD:-ai_infra_dev}
+      POSTGRES_PASSWORD: ${AI_INFRA_POSTGRES_PASSWORD:?Set AI_INFRA_POSTGRES_PASSWORD in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -112,7 +112,7 @@ services:
   agent:
     profiles: ["agent"]
     image: ai-infra-console-agent:latest
-    hostname: phase2-agent-smoke
+    hostname: ai-infra-agent
     build:
       context: ./apps/agent
       dockerfile: Dockerfile

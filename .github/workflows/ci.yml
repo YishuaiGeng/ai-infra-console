@@ -80,7 +80,7 @@ jobs:
           echo "AI_INFRA_POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
           echo "AI_INFRA_WEB_PORT=3100" >> "$GITHUB_ENV"
           echo "AI_INFRA_API_PORT=8100" >> "$GITHUB_ENV"
-          echo 'AI_INFRA_MUTABLE_SERVER_NAMES=["phase3-cpu-agent"]' >> "$GITHUB_ENV"
+          echo 'AI_INFRA_MUTABLE_SERVER_NAMES=["ci-agent"]' >> "$GITHUB_ENV"
       - name: Validate Compose configuration
         run: docker compose config --quiet
       - name: Build and start stack

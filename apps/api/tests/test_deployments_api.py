@@ -1,4 +1,4 @@
-import uuid
+﻿import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar
 
@@ -96,7 +96,7 @@ async def provision_deployments(
     app: FastAPI,
     client: AsyncClient,
 ) -> tuple[dict[str, str], dict[str, str], dict[str, str], str]:
-    app.state.settings.mutable_server_names = ("xiao-pro6000",)
+    app.state.settings.mutable_server_names = ("gpu-node-01",)
     admin = User(
         username="deployment-admin",
         password_hash=hash_password("unused-password"),
@@ -110,7 +110,7 @@ async def provision_deployments(
         is_active=True,
     )
     server = Server(
-        name="xiao-pro6000",
+        name="gpu-node-01",
         host="10.20.0.60",
         status="pending",
         type="local",
@@ -131,7 +131,7 @@ async def provision_deployments(
     agent_headers = {"authorization": f"Bearer {agent_token}"}
     registered = await client.post(
         "/api/v1/agent/register",
-        json=deployment_snapshot("xiao-pro6000-host", "/models"),
+        json=deployment_snapshot("gpu-node-01-host", "/models"),
         headers=agent_headers,
     )
     assert registered.status_code == 200

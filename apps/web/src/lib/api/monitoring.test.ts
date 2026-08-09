@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
   mapMetricsHistory,
@@ -18,7 +18,7 @@ describe("monitoring API mapping", () => {
           server_points: [
             {
               server_id: "server-1",
-              server_name: "xiao-pro6000",
+              server_name: "gpu-node-01",
               collected_at: "2026-08-10T00:00:00Z",
               cpu_utilization: 42,
               memory_used: 1024,
@@ -33,7 +33,7 @@ describe("monitoring API mapping", () => {
             {
               gpu_id: "gpu-1",
               server_id: "server-1",
-              server_name: "xiao-pro6000",
+              server_name: "gpu-node-01",
               gpu_index: 0,
               gpu_name: "RTX 4090",
               collected_at: "2026-08-10T00:00:00Z",
@@ -48,7 +48,7 @@ describe("monitoring API mapping", () => {
       ),
     ).toMatchObject({
       windowHours: 24,
-      serverPoints: [{ serverName: "xiao-pro6000", cpuUtilization: 42 }],
+      serverPoints: [{ serverName: "gpu-node-01", cpuUtilization: 42 }],
       gpuPoints: [{ gpuName: "RTX 4090", utilization: 80 }],
     });
   });
@@ -62,7 +62,7 @@ describe("monitoring API mapping", () => {
             {
               id: "derived:server-offline",
               level: "critical",
-              title: "xiao-pro6000 is offline",
+              title: "gpu-node-01 is offline",
               message: "The Agent heartbeat is outside the configured online window.",
               is_read: false,
               source: "derived",

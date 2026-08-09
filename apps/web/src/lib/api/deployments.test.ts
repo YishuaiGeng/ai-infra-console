@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
 import {
   apiEndpointTestPayload,
@@ -30,11 +30,11 @@ function deploymentDto(status = "running") {
     },
     server: {
       id: "server-1",
-      name: "xiao-pro6000",
+      name: "gpu-node-01",
       status: "online",
       type: "local",
       host: "10.20.0.60",
-      hostname: "xiao-pro6000",
+      hostname: "gpu-node-01",
     },
     gpus: [
       {
@@ -86,7 +86,7 @@ describe("deployment DTO mapping", () => {
       backend: "vllm",
       healthStatus: "healthy",
       model: { modelFileId: "file-1", sourceId: "Qwen/Qwen3-8B" },
-      server: { name: "xiao-pro6000" },
+      server: { name: "gpu-node-01" },
       config: { extraArguments: ["--enable-prefix-caching"] },
     });
     expect(deployment).not.toHaveProperty("containerId");

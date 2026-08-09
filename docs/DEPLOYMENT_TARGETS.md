@@ -1,18 +1,18 @@
 # Deployment Targets
 
-This document records host roles only. Credentials, private addresses, tokens, and SSH configuration must remain outside Git.
+This document describes the recommended host-role model for a self-hosted AI Infra Console deployment. It must contain example host names only. Credentials, private addresses, provider tokens, registration tokens, and SSH configuration belong in local secret storage, never in Git.
 
-| Host | Intended role | Allowed project actions |
+| Example host | Intended role | Allowed actions |
 | --- | --- | --- |
-| `xiao-pro6000` | Primary AI Infra Console host and optional model storage/runtime node | Install and run the Central stack; register an Agent in Phase 2; store/download models; run deployments after Phase 6 |
-| `xiao-cpu` | Model storage/download node | Register an Agent when approved; store/download models; no Central stack unless the deployment plan changes |
-| `asus-2024` | Backup server | Inventory reference only; do not install, configure, download models, deploy workloads, or otherwise modify it |
-| `asus-4090` | Backup server | Inventory reference only; do not install, configure, download models, deploy workloads, or otherwise modify it |
+| `gpu-node-01` | Central host and optional GPU runtime node | Run the Central stack, register an Agent, store/download models, and run deployments when explicitly allowlisted |
+| `storage-node-01` | Model storage or download node | Register an Agent and store/download models when explicitly allowlisted |
+| `backup-node-01` | Backup or inventory-only server | Read-only inventory reference unless the operator intentionally changes policy |
+| `backup-node-02` | Backup or inventory-only server | Read-only inventory reference unless the operator intentionally changes policy |
 
 ## Guardrails
 
-- Production deployment targets `xiao-pro6000`.
-- Model downloads may target only `xiao-pro6000` or `xiao-cpu` by default.
-- The two ASUS hosts are denied mutation actions unless the maintainer explicitly changes this policy.
-- Host allowlists will be enforced in backend/Agent authorization before real download or deployment actions are introduced.
-- The repository must contain example host names only, never their credentials or private connection details.
+- Put only servers that may receive model or deployment mutations in `AI_INFRA_MUTABLE_SERVER_NAMES`.
+- Keep backup, read-only, and inventory-only servers out of mutation allowlists.
+- Enable Agent model mutations and deployment control independently on each managed server.
+- Pin reviewed runtime images before enabling deployment control.
+- Never commit real hostnames if they reveal private infrastructure.

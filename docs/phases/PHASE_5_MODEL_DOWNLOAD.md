@@ -1,4 +1,4 @@
-# Phase 5: Model Download
+﻿# Phase 5: Model Download
 
 ## Status
 
@@ -6,7 +6,7 @@
 - Entry gate: Phase 4 complete, including model inventory and GitHub Actions run `31210327473`
 - Exit gate: every acceptance item in this document has direct automated, browser, or runtime evidence
 - Scope boundary: provider discovery, download, retry, cancel, and safe deletion only; runtime deployment remains Phase 6
-- Host boundary: mutation may be enabled only for `xiao-cpu` and `xiao-pro6000`; do not modify `asus-2024` or `asus-4090`
+- Host boundary: mutation may be enabled only for `storage-node-01` and `gpu-node-01`; do not modify `backup-node-01` or `backup-node-02`
 
 ## Technical decisions
 
@@ -126,7 +126,7 @@ Evidence:
 ### Phase 5.8 Browser and interaction verification
 
 - [x] Search `Qwen/Qwen3-8B` through Hugging Face and ModelScope fixtures and verify provider metadata/error states.
-- [x] Create a download for `xiao-cpu` or `xiao-pro6000` fixture using a selected advertised directory, never a typed path.
+- [x] Create a download for `storage-node-01` or `gpu-node-01` fixture using a selected advertised directory, never a typed path.
 - [x] Observe queued/downloading/completed progress and verify Installed Models refreshes with the published path.
 - [x] Exercise cancel and retry without duplicate rows or stale progress overwrites.
 - [x] Exercise deletion confirmation, successful removal, deployed-model refusal, and inventory refresh.
@@ -150,7 +150,7 @@ Evidence:
 ## Exit acceptance
 
 - [x] Searching `Qwen/Qwen3-8B` returns normalized Hugging Face and ModelScope results or a clear provider-specific state.
-- [x] An Admin can select an allowed directory on `xiao-cpu` or `xiao-pro6000` and create a real outbound Agent download task.
+- [x] An Admin can select an allowed directory on `storage-node-01` or `gpu-node-01` and create a real outbound Agent download task.
 - [x] Downloads exposes queued/downloading/cancelling/completed/failed/cancelled state, bytes, total, speed, attempt, and safe error details.
 - [x] Cancel and retry are idempotent, lease-safe, and do not publish partial models.
 - [x] Completed downloads appear in Installed Models after an immediate inventory refresh.
@@ -158,14 +158,14 @@ Evidence:
 - [x] Provider credentials and proxy configuration remain local secrets and never enter database rows, API responses, logs, or Git.
 - [x] No generic command execution, deployment action, or inbound Agent listener was introduced.
 - [x] Phase 0-4 Web/API/Agent/Compose checks still pass.
-- [x] No modification was made to `asus-2024` or `asus-4090`.
+- [x] No modification was made to `backup-node-01` or `backup-node-02`.
 
 ## Current evidence
 
 - API: 44 tests passed; Ruff and mypy passed. The migration cycle test passes upgrade/downgrade/upgrade and verifies the Phase 5 task schema.
 - Agent: 44 tests passed with one Windows symlink test skipped; Ruff, mypy, wheel, and source distribution builds passed.
 - Web: ESLint and TypeScript passed; 15 Vitest tests passed with 84.72% statement coverage; the production Next.js build passed.
-- Browser: real Hugging Face and ModelScope search, allowlisted `xiao-pro6000` selection, completed download and inventory convergence, cancel/retry, exact-confirm deletion, deployed-model refusal, and Viewer mutation hiding were observed against the isolated Phase 5 stack. Keyboard escape returned focus to the trigger, the refusal used the notification region, and the 1080px Downloads viewport had equal body client/scroll widths despite long paths and revisions. The complete mobile sweep remains part of Phase 9.
+- Browser: real Hugging Face and ModelScope search, allowlisted `gpu-node-01` selection, completed download and inventory convergence, cancel/retry, exact-confirm deletion, deployed-model refusal, and Viewer mutation hiding were observed against the isolated Phase 5 stack. Keyboard escape returned focus to the trigger, the refusal used the notification region, and the 1080px Downloads viewport had equal body client/scroll widths despite long paths and revisions. The complete mobile sweep remains part of Phase 9.
 - Compose: both configurations validate. GitHub Actions run [`31221477457`](https://github.com/YishuaiGeng/ai-infra-console/actions/runs/31221477457) passed the clean Linux `web`, `api`, `agent`, and full outbound-Agent Compose jobs, including the final revoked-token assertion.
 - Security: the tracked secret, generic command, unsafe path, backup-host mutation, and Phase 5 mock-dependency scan passes. No mutation request was sent to either backup host.
 

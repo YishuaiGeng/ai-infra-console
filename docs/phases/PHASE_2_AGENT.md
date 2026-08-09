@@ -1,4 +1,4 @@
-# Phase 2: Agent
+﻿# Phase 2: Agent
 
 ## Status
 
@@ -6,7 +6,7 @@
 - Entry gate: Phase 1 complete, including Linux Compose and PostgreSQL runtime evidence
 - Exit gate: every acceptance item in this document has direct automated or runtime evidence
 - Scope boundary: no model scanning/download, deployment lifecycle, log streaming, or UI data replacement
-- Host boundary: development may target `xiao-pro6000` or `xiao-cpu`; do not modify `asus-2024` or `asus-4090`
+- Host boundary: development may target `gpu-node-01` or `storage-node-01`; do not modify `backup-node-01` or `backup-node-02`
 
 ## Technical decisions
 
@@ -153,7 +153,7 @@ Recorded on 2026-08-08:
 Phase gate result:
 
 - No Phase 2 acceptance item remains open. Phase 3 may proceed from this recorded baseline.
-- `asus-2024` and `asus-4090` were not accessed or modified.
+- `backup-node-01` and `backup-node-02` were not accessed or modified.
 
 ## Exit acceptance
 
@@ -165,6 +165,6 @@ Phase gate result:
 - [x] CPU-only and missing-runtime hosts remain operational with explicit unavailable states.
 - [x] No arbitrary command or inbound remote-shell capability exists.
 - [x] Phase 1 Web/API/Compose checks still pass.
-- [x] No modification was made to `asus-2024` or `asus-4090`.
+- [x] No modification was made to `backup-node-01` or `backup-node-02`.
 
 Phase 2 closed after every item above was checked and backed by current command or runtime output.

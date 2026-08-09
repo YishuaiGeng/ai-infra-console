@@ -1,4 +1,4 @@
-# Phase 6: Deployment
+﻿# Phase 6: Deployment
 
 ## Status
 
@@ -6,7 +6,7 @@
 - Entry gate: Phase 5 complete, including GitHub Actions run [`31221477457`](https://github.com/YishuaiGeng/ai-infra-console/actions/runs/31221477457)
 - Exit gate: every acceptance item in this document has direct automated, browser, runtime, or clean Linux CI evidence
 - Scope boundary: managed vLLM Docker deployment, placement, lifecycle, health, and logs only; OpenAI-compatible request testing is tracked in Phase 7
-- Host boundary: deployment mutation may be enabled only for `xiao-pro6000`; model storage may remain on `xiao-cpu` or `xiao-pro6000`, but a runtime uses a model file local to its selected server. Do not modify `asus-2024` or `asus-4090`
+- Host boundary: deployment mutation may be enabled only for `gpu-node-01`; model storage may remain on `storage-node-01` or `gpu-node-01`, but a runtime uses a model file local to its selected server. Do not modify `backup-node-01` or `backup-node-02`
 
 Current implementation evidence:
 
@@ -135,7 +135,7 @@ Evidence:
 
 ### Phase 6.8 Browser and interaction verification
 
-- [ ] Create a fixture deployment for a discovered `Qwen/Qwen3-8B` location on `xiao-pro6000` using automatic placement and verify the selected GPU/port/configuration.
+- [ ] Create a fixture deployment for a discovered `Qwen/Qwen3-8B` location on `gpu-node-01` using automatic placement and verify the selected GPU/port/configuration.
 - [ ] Exercise manual GPU placement and surface port, stale GPU, unsupported format, and unauthorized Viewer errors.
 - [ ] Observe queued/starting/running and healthy state, endpoint publication, logs, Dashboard count, and GPU allocation without reload.
 - [ ] Exercise Stop and verify stopped state, released runtime GPU state, and preserved configuration.
@@ -158,7 +158,7 @@ Evidence:
 
 ## Exit acceptance
 
-- [ ] An Admin can choose an installed model on `xiao-pro6000`, use automatic or manual same-server GPU placement, and create a typed vLLM deployment.
+- [ ] An Admin can choose an installed model on `gpu-node-01`, use automatic or manual same-server GPU placement, and create a typed vLLM deployment.
 - [ ] Central and Agent both reject stale/unavailable GPUs, conflicting ports, unsafe model paths, unsupported backends/images, foreign containers, and backup-host mutation.
 - [ ] The Agent creates only an exactly labeled, hardened container with a read-only model mount, managed argv, selected GPU devices, and no shell execution.
 - [ ] Deployment state converges through queued/starting/running/healthy, and the console exposes the expected `http://server:port/v1` base URL.
@@ -169,6 +169,6 @@ Evidence:
 - [ ] Viewer can read deployment state/logs but cannot see or invoke lifecycle mutation controls.
 - [ ] No generic command execution, inbound Agent listener, arbitrary Docker control, or backup-host modification was introduced.
 - [ ] Phase 0-5 Web/API/Agent/Compose checks still pass.
-- [ ] No modification was made to `asus-2024` or `asus-4090`.
+- [ ] No modification was made to `backup-node-01` or `backup-node-02`.
 
 Phase 7 must not start until every item above is checked and backed by current command, browser, runtime, or Linux CI output.
