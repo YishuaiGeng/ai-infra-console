@@ -45,7 +45,13 @@ export function ApiTestDialog({ deployment }: { deployment: Deployment }) {
   const result = testApi.data;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) testApi.reset();
+      }}
+    >
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <Play /> Test API
       </DialogTrigger>
@@ -66,10 +72,16 @@ export function ApiTestDialog({ deployment }: { deployment: Deployment }) {
             <div className="space-y-1.5">
               <Label htmlFor={`tokens-${deployment.id}`}>Max tokens</Label>
               <Input id={`tokens-${deployment.id}`} type="number" {...register("maxTokens", { valueAsNumber: true })} />
+              {errors.maxTokens && (
+                <p className="text-xs text-destructive">{errors.maxTokens.message}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor={`temperature-${deployment.id}`}>Temperature</Label>
               <Input id={`temperature-${deployment.id}`} type="number" min="0" max="2" step="0.1" {...register("temperature", { valueAsNumber: true })} />
+              {errors.temperature && (
+                <p className="text-xs text-destructive">{errors.temperature.message}</p>
+              )}
             </div>
           </div>
           {testApi.isError && (

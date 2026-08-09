@@ -13,9 +13,9 @@ This roadmap summarizes the staged implementation plan. The source product requi
 | 4 | Model Inventory | Complete | Read-only model directory scanning and installed-model views |
 | 5 | Model Download | Complete | Provider search, download/cancel/retry/delete workflows through Agent tasks |
 | 6 | Deployment | Complete | vLLM Docker placement, lifecycle, health, bounded logs, reconciliation |
-| 7 | API Endpoints | In progress | Real endpoint listing and Central-mediated chat-completions test are implemented |
+| 7 | API Endpoints | Complete | Real endpoint listing, OpenAI-compatible metadata, Agent health, and Central-mediated chat-completions test are implemented |
 | 8 | Monitoring Polish | Complete | Real Activity audit view, metric history, derived notifications, and retention cleanup are implemented |
-| 9 | UI Polish | Planned | Accessibility, responsive polish, visual consistency, final docs cleanup |
+| 9 | UI Polish | Complete | Dark/light states, loading/empty/error handling, validation, responsive wrapping, mock-removal audit, docs, and checks are complete |
 
 ## Product Workflow
 
@@ -53,19 +53,16 @@ Detailed phase records:
 - [Phase 4: Model Inventory](./phases/PHASE_4_MODEL_INVENTORY.md)
 - [Phase 5: Model Download](./phases/PHASE_5_MODEL_DOWNLOAD.md)
 - [Phase 6: Deployment](./phases/PHASE_6_DEPLOYMENT.md)
+- [Phase 7: API Endpoints](./phases/PHASE_7_API_ENDPOINTS.md)
+- [Phase 8: Monitoring Polish](./phases/PHASE_8_MONITORING_POLISH.md)
+- [Phase 9: UI Polish](./phases/PHASE_9_UI_POLISH.md)
 
 Phase 7 through Phase 9 should use the same pattern: write code-level acceptance criteria, implement the smallest real workflow that satisfies them, run Web/API/Agent/security gates, then update README and phase evidence.
 
-## Remaining Work
+## Post-Phase Follow-Ups
 
-Phase 7:
+These are optional hardening items after the requested Phase 7-9 completion:
 
-- Add more endpoint-level health and model metadata if needed by external clients.
-- Expand browser verification for live endpoint test failures, long responses, and unavailable runtimes.
-
-Phase 9:
-
-- Finish keyboard/focus checks across dialogs, menus, tables, and logs.
-- Sweep desktop/tablet/mobile overflow and long text behavior.
-- Remove remaining mock dependencies from production-facing pages where real APIs exist.
-- Run full Web/API/Agent/security gates and update documentation with final evidence.
+- Add a first-class `api_endpoints` projection if external clients need endpoint records independent of deployment lifecycle rows.
+- Add browser automation screenshots for representative desktop, tablet, and mobile widths in CI.
+- Add optional notification read/dismiss mutation if persistent notification workflow becomes necessary.

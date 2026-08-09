@@ -1,6 +1,6 @@
 # AI Infra Console
 
-[![Phase](https://img.shields.io/badge/phase-7%20API%20Testing-2563eb)](./docs/DEVELOPMENT_ROADMAP.md)
+[![Phase](https://img.shields.io/badge/phase-9%20complete-16a34a)](./docs/DEVELOPMENT_ROADMAP.md)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0f766e)](./LICENSE)
 
@@ -21,17 +21,19 @@ AI Infra Console is a lightweight control plane for personal AI infrastructure: 
 | 4 | Model inventory and directory scanning | Complete |
 | 5 | Hugging Face and ModelScope downloads | Complete |
 | 6 | Docker and vLLM deployment lifecycle | Complete |
-| 7 | OpenAI-compatible endpoint listing and test dialog | In progress |
+| 7 | OpenAI-compatible endpoint listing, health, and test dialog | Complete |
 | 8 | Activity, metrics history, and notifications | Complete |
-| 9 | Accessibility and UI polish | Planned |
+| 9 | Accessibility and UI polish | Complete |
 
-Recent Phase 7/8 progress:
+Recent Phase 7-9 progress:
 
 - `/apis` now lists real running deployment endpoints instead of mock endpoint fixtures.
 - The API test dialog sends a bounded `/v1/chat/completions` request through Central for an existing deployment endpoint; the browser cannot submit an arbitrary URL.
+- API endpoint cards show OpenAI-compatible paths, model IDs, Agent health status, latency, last health check, and generation metadata.
 - `/activity` now reads real audit logs from Central and filters sensitive detail keys before displaying them.
 - Dashboard now includes a compact 24-hour resource trend panel backed by Agent metric samples.
 - The header notification menu now reads derived and stored monitoring notifications from Central.
+- Production-facing pages for endpoints, activity, monitoring, and settings no longer depend on mock data where real APIs exist.
 
 ## Core Workflow
 
@@ -146,6 +148,9 @@ Never commit real host records, credentials, registration tokens, provider token
 
 - [Development roadmap](./docs/DEVELOPMENT_ROADMAP.md)
 - [Phase 6 deployment plan](./docs/phases/PHASE_6_DEPLOYMENT.md)
+- [Phase 7 API endpoints](./docs/phases/PHASE_7_API_ENDPOINTS.md)
+- [Phase 8 monitoring polish](./docs/phases/PHASE_8_MONITORING_POLISH.md)
+- [Phase 9 UI polish](./docs/phases/PHASE_9_UI_POLISH.md)
 - [Backend development](./docs/BACKEND_DEVELOPMENT.md)
 - [Agent operations](./docs/AGENT_OPERATIONS.md)
 - [Deployment targets](./docs/DEPLOYMENT_TARGETS.md)

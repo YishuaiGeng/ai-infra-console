@@ -127,7 +127,7 @@ def main() -> None:
 
     for tracked in tracked_files():
         normalized = tracked.replace("\\", "/")
-        if normalized.startswith("服务器资料/"):
+        if normalized == "服务器资料" or normalized.startswith("服务器资料/"):
             failures.append(f"private server material is tracked: {normalized}")
         if Path(normalized).name == ".env":
             failures.append(f"environment secret file is tracked: {normalized}")
