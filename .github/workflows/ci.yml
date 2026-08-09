@@ -47,7 +47,7 @@ jobs:
         run: pip install uv==0.9.18
       - run: uv sync --project apps/api --all-groups --frozen
       - run: uv run --project apps/api ruff check apps/api
-      - run: uv run --project apps/api mypy apps/api/src apps/api/tests
+      - run: uv run --project apps/api mypy --config-file apps/api/pyproject.toml apps/api/src apps/api/tests
       - run: uv run --project apps/api pytest apps/api/tests
 
   agent:
@@ -61,7 +61,7 @@ jobs:
         run: pip install uv==0.9.18
       - run: uv sync --project apps/agent --all-groups --frozen
       - run: uv run --project apps/agent ruff check apps/agent
-      - run: uv run --project apps/agent mypy apps/agent/src apps/agent/tests
+      - run: uv run --project apps/agent mypy --config-file apps/agent/pyproject.toml apps/agent/src apps/agent/tests
       - run: uv run --project apps/agent pytest apps/agent/tests
       - run: uv build --project apps/agent
       - run: bash -n scripts/install-agent.sh

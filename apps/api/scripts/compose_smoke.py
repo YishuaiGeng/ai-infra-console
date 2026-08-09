@@ -1527,5 +1527,9 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        print(f"[compose-smoke] failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        detail = f"{type(exc).__name__}: {exc}"
+        if isinstance(exc, urllib.error.HTTPError):
+            response_body = exc.read().decode("utf-8", errors="replace").strip()
+            detail = f"HTTP {exc.code} {exc.url}: {response_body[:800]}"
+        print(f"[compose-smoke] failed: {detail}", file=sys.stderr)
         raise
