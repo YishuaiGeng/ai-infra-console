@@ -1,7 +1,9 @@
 import json
 import logging
 
+import docker
 import httpx
+import pytest
 from docker.errors import DockerException
 
 from ai_infra_agent.cli import parser
@@ -20,9 +22,9 @@ class FakeDockerClient:
         self.closed = True
 
 
-def test_docker_runtime_success_closes_client(monkeypatch: object) -> None:
+def test_docker_runtime_success_closes_client(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeDockerClient()
-    monkeypatch.setattr(runtimes.docker, "from_env", lambda timeout: client)  # type: ignore[attr-defined]
+    monkeypatch.setattr(docker, "from_env", lambda timeout: client)
 
     status = runtimes.docker_status()
 
@@ -31,11 +33,11 @@ def test_docker_runtime_success_closes_client(monkeypatch: object) -> None:
     assert client.closed is True
 
 
-def test_docker_runtime_unavailable_is_nonfatal(monkeypatch: object) -> None:
+def test_docker_runtime_unavailable_is_nonfatal(monkeypatch: pytest.MonkeyPatch) -> None:
     def unavailable(*, timeout: int) -> None:
         raise DockerException(f"unavailable after {timeout}s")
 
-    monkeypatch.setattr(runtimes.docker, "from_env", unavailable)  # type: ignore[attr-defined]
+    monkeypatch.setattr(docker, "from_env", unavailable)
 
     status = runtimes.docker_status()
 
@@ -43,10 +45,10 @@ def test_docker_runtime_unavailable_is_nonfatal(monkeypatch: object) -> None:
     assert status.detail == "DockerException"
 
 
-def test_ollama_runtime_success_and_unavailable(monkeypatch: object) -> None:
+def test_ollama_runtime_success_and_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     request = httpx.Request("GET", runtimes.OLLAMA_VERSION_URL)
-    monkeypatch.setattr(  # type: ignore[attr-defined]
-        runtimes.httpx,
+    monkeypatch.setattr(
+        httpx,
         "get",
         lambda _url, timeout: httpx.Response(200, request=request, json={"version": "0.11.0"}),
     )
@@ -55,7 +57,7 @@ def test_ollama_runtime_success_and_unavailable(monkeypatch: object) -> None:
     def connection_error(_url: str, timeout: int) -> httpx.Response:
         raise httpx.ConnectError(f"unavailable after {timeout}s", request=request)
 
-    monkeypatch.setattr(runtimes.httpx, "get", connection_error)  # type: ignore[attr-defined]
+    monkeypatch.setattr(httpx, "get", connection_error)
     unavailable = runtimes.ollama_status()
 
     assert available.available is True

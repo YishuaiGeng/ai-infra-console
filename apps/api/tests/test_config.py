@@ -21,6 +21,6 @@ def test_production_requires_strong_database_password() -> None:
 
 
 def test_empty_bootstrap_password_is_unset() -> None:
-    settings = Settings(bootstrap_admin_password="")  # type: ignore[arg-type]
+    settings = Settings(bootstrap_admin_password="")
 
     assert settings.bootstrap_admin_password is None

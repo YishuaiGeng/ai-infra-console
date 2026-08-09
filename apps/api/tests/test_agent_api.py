@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import FastAPI
 from httpx import AsyncClient
@@ -38,7 +39,7 @@ def agent_headers(token: str) -> dict[str, str]:
     return {"authorization": f"Bearer {token}"}
 
 
-def snapshot_payload(*, hostname: str = "agent-node", process_pid: int = 1200) -> dict[str, object]:
+def snapshot_payload(*, hostname: str = "agent-node", process_pid: int = 1200) -> dict[str, Any]:
     return {
         "collected_at": datetime.now(UTC).isoformat(),
         "agent_version": "0.1.0",
@@ -184,9 +185,9 @@ async def test_gpu_replacement_reuses_slot_and_deduplicates_processes(
         "/api/v1/agent/register", headers=agent_headers(token), json=snapshot_payload()
     )
     replacement = snapshot_payload(process_pid=3300)
-    replacement_gpu = replacement["gpus"][0]  # type: ignore[index]
-    replacement_gpu["uuid"] = "GPU-replacement"  # type: ignore[index]
-    replacement_gpu["processes"].append(  # type: ignore[index, union-attr]
+    replacement_gpu = replacement["gpus"][0]
+    replacement_gpu["uuid"] = "GPU-replacement"
+    replacement_gpu["processes"].append(
         {
             "pid": 3300,
             "username": "researcher",

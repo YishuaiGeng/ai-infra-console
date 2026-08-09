@@ -11,9 +11,14 @@ from ai_infra_agent.collectors.models import (
     scan_model_directory,
 )
 from ai_infra_agent.config import AgentSettings
+from ai_infra_agent.schemas import ModelDirectorySnapshot, ModelInstallationSnapshot
 
 
-def scan(root: Path, *, limit: int = 20):
+def scan(
+    root: Path,
+    *,
+    limit: int = 20,
+) -> tuple[ModelDirectorySnapshot, list[ModelInstallationSnapshot]]:
     return scan_model_directory(
         root,
         is_default=True,

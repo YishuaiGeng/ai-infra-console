@@ -911,7 +911,7 @@ def main() -> None:
         "cross-server GPU inventory",
         lambda: request_json(f"{base_url}/api/v1/gpus", token=viewer_token),
     )
-    if not isinstance(gpu_inventory, list) or len(gpu_inventory) != 5:
+    if not isinstance(gpu_inventory, list) or len(gpu_inventory) != 6:
         raise RuntimeError("Cross-server GPU inventory is incomplete")
     statuses = [item.get("status") for item in gpu_inventory]
     if statuses.count("active") != 1 or statuses.count("unavailable") != 1:
@@ -1524,4 +1524,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        print(f"[compose-smoke] failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        raise

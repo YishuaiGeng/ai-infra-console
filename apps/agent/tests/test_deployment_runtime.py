@@ -1,7 +1,7 @@
 import json
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from pydantic import SecretStr, ValidationError
@@ -89,10 +89,10 @@ def create_command(root: Path, model: Path) -> DeploymentCreateCommand:
 
 def lifecycle(
     command: DeploymentCreateCommand,
-    kind: str,
+    kind: Literal["start", "stop", "restart", "delete"],
 ) -> DeploymentLifecycleCommand:
     return DeploymentLifecycleCommand(
-        kind=kind,  # type: ignore[arg-type]
+        kind=kind,
         operation_id=uuid.uuid4(),
         deployment_id=command.deployment_id,
         generation=command.generation,

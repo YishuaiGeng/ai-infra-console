@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from typing import cast
+
 from fakeredis import FakeRedis
 from rq import Queue, SimpleWorker
 from rq.job import JobStatus
@@ -12,7 +15,7 @@ def test_worker_processes_health_probe() -> None:
     worker = SimpleWorker([queue], connection=connection)
 
     assert worker.work(burst=True) is True
-    job.refresh()
+    cast(Callable[[], None], job.refresh)()
     assert job.get_status() == JobStatus.FINISHED
     result = job.return_value()
     assert isinstance(result, dict)
