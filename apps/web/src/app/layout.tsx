@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     description:
       "A lightweight control plane for AI servers, GPUs, models, and inference runtimes.",
     type: "website",
-    images: [{ url: "/brand/logo.png", width: 1536, height: 1024 }],
+    images: [{ url: "/brand/logo.png", width: 1536, height: 420 }],
   },
 };
 
