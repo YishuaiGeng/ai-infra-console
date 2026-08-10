@@ -22,6 +22,14 @@ AI Infra Console 是一个可自托管的 AI 基础设施控制台，用于统�
 - 监控历史：CPU、RAM、磁盘、网络、GPU 利用率、显存、温度和功耗。
 - 派生通知：服务器离线、磁盘不足、GPU 高温、显存接近满载、下载失败和部署失败。
 
+## API 资源管理
+
+项目已实现独立的 API 资源管理模块，用于登记和管理外部模型平台账号、加密 Credential、可用模型、健康状态、余额、额度和供应商支持的使用量数据。
+
+该模块定位为 API 资产台账与用量同步控制台，不是 API Gateway，不接管正常业务请求，也不提供请求转发、协议转换、负载均衡或二级 API Key。
+
+当前支持 OpenAI 与 Generic OpenAI-compatible Adapter；OpenAI 可同步组织级 Usage/Costs，兼容平台可同步模型并人工维护余额与用量快照。完整产品边界、数据模型、后端接口、Provider Adapter、安全方案、前端页面、测试策略和验收要求见 [API 资源管理模块开发文档](./API_RESOURCE_MANAGEMENT.md)。
+
 ## 架构
 
 ```text

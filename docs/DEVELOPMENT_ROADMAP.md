@@ -16,6 +16,7 @@ This roadmap summarizes the staged implementation plan. The source product requi
 | 7 | API Endpoints | Complete | Real endpoint listing, OpenAI-compatible metadata, Agent health, and Central-mediated chat-completions test are implemented |
 | 8 | Monitoring Polish | Complete | Real Activity audit view, metric history, derived notifications, and retention cleanup are implemented |
 | 9 | UI Polish | Complete | Dark/light states, loading/empty/error handling, validation, responsive wrapping, mock-removal audit, docs, and checks are complete |
+| 10 | API Resource Management | Complete | External API inventory, encrypted credentials, capability-aware adapters, OpenAI usage/cost sync, manual snapshots, SSRF controls, audit, Web UI, migration, and tests are implemented |
 
 ## Product Workflow
 
@@ -56,13 +57,13 @@ Detailed phase records:
 - [Phase 7: API Endpoints](./phases/PHASE_7_API_ENDPOINTS.md)
 - [Phase 8: Monitoring Polish](./phases/PHASE_8_MONITORING_POLISH.md)
 - [Phase 9: UI Polish](./phases/PHASE_9_UI_POLISH.md)
+- [Phase 10: API Resource Management](./API_RESOURCE_MANAGEMENT.md)
 
-Phase 7 through Phase 9 should use the same pattern: write code-level acceptance criteria, implement the smallest real workflow that satisfies them, run Web/API/Agent/security gates, then update README and phase evidence.
+Phase 7 and later phases should use the same pattern: write code-level acceptance criteria, implement the smallest real workflow that satisfies them, run Web/API/Agent/security gates, then update README and phase evidence.
 
 ## Post-Phase Follow-Ups
 
 These are optional hardening items after the requested Phase 7-9 completion:
 
-- Add a first-class `api_endpoints` projection if external clients need endpoint records independent of deployment lifecycle rows.
 - Add browser automation screenshots for representative desktop, tablet, and mobile widths in CI.
 - Add optional notification read/dismiss mutation if persistent notification workflow becomes necessary.

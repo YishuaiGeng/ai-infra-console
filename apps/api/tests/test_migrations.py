@@ -26,6 +26,14 @@ REQUIRED_TABLES = {
     "deployment_operations",
     "deployment_logs",
     "api_endpoints",
+    "api_providers",
+    "api_accounts",
+    "api_credentials",
+    "api_account_models",
+    "api_usage_snapshots",
+    "api_balance_snapshots",
+    "api_health_checks",
+    "api_sync_runs",
     "notifications",
     "system_settings",
     "audit_logs",
@@ -101,6 +109,7 @@ def test_environment_database_url_accepts_percent_encoding(
         "AI_INFRA_DATABASE_URL",
         f"sqlite+aiosqlite:///{database_path.as_posix()}",
     )
+    monkeypatch.setenv("AI_INFRA_ENVIRONMENT", "test")
     get_settings.cache_clear()
     try:
         command.upgrade(Config(api_root / "alembic.ini"), "head")

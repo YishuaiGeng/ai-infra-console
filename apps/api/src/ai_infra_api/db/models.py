@@ -14,6 +14,8 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -467,3 +469,174 @@ class AuditLog(UUIDPrimaryKeyMixin, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
+
+
+class ApiProvider(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "api_providers"
+
+    slug: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(String(128))
+    provider_type: Mapped[str] = mapped_column(String(32), default="built_in")
+    default_base_url: Mapped[str | None] = mapped_column(String(512))
+    capabilities: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+
+
+class ApiAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "api_accounts"
+    __table_args__ = (
+        Index("ix_api_accounts_provider_name_url", "provider_id", "name", "base_url"),
+    )
+
+    provider_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("api_providers.id", ondelete="RESTRICT"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(128), index=True)
+    purpose: Mapped[str | None] = mapped_column(String(255))
+    owner: Mapped[str | None] = mapped_column(String(128), index=True)
+    base_url: Mapped[str] = mapped_column(String(512))
+    status: Mapped[str] = mapped_column(String(32), default="unverified", index=True)
+    billing_currency: Mapped[str | None] = mapped_column(String(16))
+    monthly_budget: Mapped[float | None] = mapped_column(Numeric(18, 6))
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    notes: Mapped[str | None] = mapped_column(Text)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+
+
+class ApiCredential(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "api_credentials"
+    __table_args__ = (UniqueConstraint("account_id", "fingerprint"),)
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("api_accounts.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(128))
+    credential_type: Mapped[str] = mapped_column(String(32), default="api_key")
+    encrypted_value: Mapped[bytes] = mapped_column(LargeBinary)
+    encryption_key_version: Mapped[str] = mapped_column(String(32))
+    masked_value: Mapped[str] = mapped_column(String(64))
+    fingerprint: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="active", index=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    last_validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error_code: Mapped[str | None] = mapped_column(String(64))
+    last_error_message: Mapped[str | None] = mapped_column(String(512))
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+
+
+class ApiAccountModel(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "api_account_models"
+    __table_args__ = (UniqueConstraint("account_id", "provider_model_id"),)
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("api_accounts.id", ondelete="CASCADE"), index=True
+    )
+    provider_model_id: Mapped[str] = mapped_column(String(255), index=True)
+    display_name: Mapped[str | None] = mapped_column(String(255))
+    model_family: Mapped[str | None] = mapped_column(String(128))
+    capabilities: Mapped[list[str]] = mapped_column(JSON, default=list)
+    context_window: Mapped[int | None] = mapped_column(BigInteger)
+    is_available: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    source: Mapped[str] = mapped_column(String(32), default="provider")
+    discovered_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class ApiUsageSnapshot(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "api_usage_snapshots"
+    __table_args__ = (
+        Index("ix_api_usage_account_period", "account_id", "period_start", "period_end"),
+        UniqueConstraint("account_id", "provider_record_id"),
+    )
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("api_accounts.id", ondelete="CASCADE"), index=True
+    )
+    credential_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("api_credentials.id", ondelete="SET NULL"), index=True
+    )
+    provider_model_id: Mapped[str | None] = mapped_column(String(255), index=True)
+    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    granularity: Mapped[str] = mapped_column(String(16), default="day")
+    request_count: Mapped[int | None] = mapped_column(BigInteger)
+    input_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    output_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    cached_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    total_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    cost_amount: Mapped[float | None] = mapped_column(Numeric(18, 6))
+    currency: Mapped[str | None] = mapped_column(String(16))
+    source: Mapped[str] = mapped_column(String(32), default="manual", index=True)
+    provider_record_id: Mapped[str | None] = mapped_column(String(255))
+    raw_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    collected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class ApiBalanceSnapshot(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "api_balance_snapshots"
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("api_accounts.id", ondelete="CASCADE"), index=True
+    )
+    balance_amount: Mapped[float | None] = mapped_column(Numeric(18, 6))
+    credit_limit: Mapped[float | None] = mapped_column(Numeric(18, 6))
+    remaining_credit: Mapped[float | None] = mapped_column(Numeric(18, 6))
+    currency: Mapped[str | None] = mapped_column(String(16))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source: Mapped[str] = mapped_column(String(32), default="manual")
+    collected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class ApiHealthCheck(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "api_health_checks"
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("api_accounts.id", ondelete="CASCADE"), index=True
+    )
+    credential_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("api_credentials.id", ondelete="SET NULL"), index=True
+    )
+    check_type: Mapped[str] = mapped_column(String(32), index=True)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    error_message: Mapped[str | None] = mapped_column(String(512))
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class ApiSyncRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "api_sync_runs"
+    __table_args__ = (
+        Index("ix_api_sync_account_type_status", "account_id", "sync_type", "status"),
+    )
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("api_accounts.id", ondelete="CASCADE"), index=True
+    )
+    sync_type: Mapped[str] = mapped_column(String(32), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
+    requested_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    records_written: Mapped[int] = mapped_column(Integer, default=0)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    error_message: Mapped[str | None] = mapped_column(String(512))
+    details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)

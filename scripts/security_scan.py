@@ -42,6 +42,14 @@ PHASE_6_WEB_PATHS = (
     ROOT / "apps" / "web" / "src" / "hooks" / "use-deployments.ts",
     ROOT / "apps" / "web" / "src" / "lib" / "api" / "deployments.ts",
 )
+API_RESOURCE_PATHS = (
+    ROOT / "apps" / "api" / "src" / "ai_infra_api" / "api" / "api_resources.py",
+    ROOT / "apps" / "api" / "src" / "ai_infra_api" / "services" / "api_resources",
+    ROOT / "apps" / "web" / "src" / "app" / "api" / "api-resources",
+    ROOT / "apps" / "web" / "src" / "features" / "api-resources",
+    ROOT / "apps" / "web" / "src" / "hooks" / "use-api-resources.ts",
+    ROOT / "apps" / "web" / "src" / "lib" / "api" / "api-resources.ts",
+)
 DEPLOYMENT_CONFIG_FILES = (
     ROOT / "compose.yaml",
     ROOT / ".github" / "workflows" / "ci.yml",
@@ -76,7 +84,12 @@ def source_files(path: Path) -> list[Path]:
     if path.is_file():
         return [path]
     if path.is_dir():
-        return [candidate for candidate in path.rglob("*") if candidate.is_file()]
+        return [
+            candidate
+            for candidate in path.rglob("*")
+            if candidate.is_file()
+            and candidate.suffix.lower() in {".js", ".jsx", ".py", ".ts", ".tsx"}
+        ]
     return []
 
 
@@ -105,6 +118,22 @@ def main() -> None:
             if "@/mocks" in content:
                 relative = path.relative_to(ROOT).as_posix()
                 failures.append(f"Phase 6 Web source imports mock data: {relative}")
+
+    for root in API_RESOURCE_PATHS:
+        for path in source_files(root):
+            content = path.read_text(encoding="utf-8")
+            relative = path.relative_to(ROOT).as_posix()
+            if "@/mocks" in content:
+                failures.append(f"API resource source imports mock data: {relative}")
+            if "allow_redirects=True" in content or "follow_redirects=True" in content:
+                failures.append(f"API resource outbound redirects are enabled: {relative}")
+
+    response_schema = ROOT / "apps" / "api" / "src" / "ai_infra_api" / "schemas" / "api_resources.py"
+    if response_schema.exists():
+        content = response_schema.read_text(encoding="utf-8")
+        for field in ("encrypted_value", "fingerprint"):
+            if field in content:
+                failures.append(f"credential storage field appears in API response schema: {field}")
 
     for path in DEPLOYMENT_CONFIG_FILES:
         if path.exists() and "/var/run/docker.sock" in path.read_text(encoding="utf-8"):

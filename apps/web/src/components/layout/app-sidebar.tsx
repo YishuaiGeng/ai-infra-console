@@ -36,13 +36,13 @@ function NavContent({
           onClick={onNavigate}
         >
           {collapsed ? (
-            <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-black">
+            <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-black">
               <Image
                 src="/brand/logo-mark.png"
                 alt="AI Infra Console"
-                width={36}
-                height={36}
-                className="size-9 object-cover"
+                width={44}
+                height={44}
+                className="size-11 object-cover"
                 priority
               />
             </span>
@@ -50,9 +50,9 @@ function NavContent({
             <Image
               src="/brand/logo.png"
               alt="AI Infra Console"
-              width={180}
-              height={49}
-              className="h-12 w-[180px] rounded-sm object-contain"
+              width={210}
+              height={57}
+              className="h-14 w-[210px] rounded-sm object-contain"
               priority
             />
           )}

@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     deployment_telemetry_fresh_seconds: int = Field(default=30, ge=10, le=3_600)
     deployment_log_retention_lines: int = Field(default=2_000, ge=100, le=20_000)
     api_test_timeout_seconds: float = Field(default=30, ge=1, le=120)
+    credential_encryption_key: SecretStr | None = None
+    credential_encryption_key_version: str = Field(default="v1", min_length=1, max_length=32)
+    external_api_allow_private_networks: bool = False
+    external_api_allowed_hosts: tuple[str, ...] = ()
+    external_api_allowed_cidrs: tuple[str, ...] = ()
+    api_resource_sync_enabled: bool = True
+    api_resource_request_timeout_seconds: float = Field(default=15, ge=1, le=120)
+    api_resource_max_response_bytes: int = Field(default=2_097_152, ge=1_024, le=20_971_520)
     metrics_retention_days: int = Field(default=14, ge=1, le=3_650)
     vllm_image: str = Field(default="vllm/vllm-openai:latest", min_length=1, max_length=255)
     model_catalog_timeout_seconds: float = Field(default=10, ge=1, le=60)
@@ -70,7 +78,9 @@ class Settings(BaseSettings):
     def empty_bootstrap_password_is_unset(cls, value: object) -> object:
         return None if value == "" else value
 
-    @field_validator("mutable_server_names")
+    @field_validator(
+        "mutable_server_names", "external_api_allowed_hosts", "external_api_allowed_cidrs"
+    )
     @classmethod
     def normalize_mutable_server_names(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         normalized = tuple(dict.fromkeys(item.strip() for item in value if item.strip()))
@@ -91,6 +101,8 @@ class Settings(BaseSettings):
             raise ValueError("AI_INFRA_DATABASE_URL must use a strong password in production")
         if self.hf_endpoint.scheme != "https" or self.modelscope_endpoint.scheme != "https":
             raise ValueError("model provider endpoints must use HTTPS in production")
+        if self.credential_encryption_key is None:
+            raise ValueError("AI_INFRA_CREDENTIAL_ENCRYPTION_KEY is required in production")
         return self
 
     @property

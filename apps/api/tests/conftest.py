@@ -1,3 +1,4 @@
+import base64
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -20,6 +21,8 @@ async def app(tmp_path: Path) -> AsyncIterator[FastAPI]:
         database_url=f"sqlite+aiosqlite:///{database_path.as_posix()}",
         redis_url="redis://unused/0",
         jwt_secret=SecretStr("test-secret-that-is-long-enough-for-tests"),
+        credential_encryption_key=SecretStr(base64.b64encode(b"k" * 32).decode()),
+        bootstrap_admin_password=None,
     )
     application = create_app(settings)
     async with application.router.lifespan_context(application):

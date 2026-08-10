@@ -1,5 +1,6 @@
 import {
   Activity,
+  CloudCog,
   Boxes,
   Download,
   Gauge,
@@ -56,7 +57,15 @@ export const navigation: NavigationGroup[] = [
   },
   {
     label: "Services",
-    items: [{ label: "API Endpoints", href: "/apis", icon: Waypoints }],
+    items: [
+      {
+        label: "API Resources",
+        href: "/api-resources",
+        icon: CloudCog,
+        match: ["/api-resources"],
+      },
+      { label: "Local API Endpoints", href: "/apis", icon: Waypoints },
+    ],
   },
   {
     label: "System",
@@ -76,6 +85,10 @@ export const breadcrumbLabels: Record<string, string> = {
   deployments: "Deployments",
   downloads: "Downloads",
   apis: "API Endpoints",
+  "api-resources": "API Resources",
+  external: "External Accounts",
+  usage: "Usage",
+  local: "Local Endpoints",
   activity: "Activity",
   settings: "Settings",
 };
