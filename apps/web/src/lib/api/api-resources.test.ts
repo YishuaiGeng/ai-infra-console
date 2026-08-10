@@ -25,6 +25,9 @@ describe("API resource DTO schemas", () => {
       display_name: "OpenAI",
       provider_type: "built_in",
       default_base_url: "https://api.openai.com/v1",
+      adapter_kind: "openai-compatible",
+      credential_header: "authorization",
+      static_headers: {},
       capabilities,
       is_enabled: true,
     });

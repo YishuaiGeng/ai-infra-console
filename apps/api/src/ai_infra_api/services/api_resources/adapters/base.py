@@ -21,6 +21,16 @@ class ProviderContext:
     credential: str
     timeout_seconds: float
     max_response_bytes: int
+    credential_header: str = "authorization"
+    static_headers: tuple[tuple[str, str], ...] = ()
+
+    def request_headers(self) -> dict[str, str]:
+        headers = dict(self.static_headers)
+        if self.credential_header.lower() == "authorization":
+            headers["authorization"] = f"Bearer {self.credential}"
+        else:
+            headers[self.credential_header] = self.credential
+        return headers
 
 
 @dataclass(frozen=True)

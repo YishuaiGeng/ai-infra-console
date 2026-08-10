@@ -19,6 +19,9 @@ export const apiProviderSchema = z.object({
   display_name: z.string(),
   provider_type: z.string(),
   default_base_url: nullableString,
+  adapter_kind: z.enum(["openai-compatible", "anthropic"]),
+  credential_header: z.string(),
+  static_headers: z.record(z.string(), z.string()),
   capabilities: providerCapabilitiesSchema,
   is_enabled: z.boolean(),
 });

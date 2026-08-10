@@ -92,6 +92,9 @@ def test_initial_migration_upgrade_downgrade_and_reupgrade(tmp_path: Path) -> No
         "lease_token_hash",
         "request_id",
     } <= column_names(database_path, "deployment_operations")
+    assert {"adapter_kind", "credential_header", "static_headers"} <= column_names(
+        database_path, "api_providers"
+    )
 
     command.downgrade(config, "base")
     assert not (REQUIRED_TABLES & table_names(database_path))

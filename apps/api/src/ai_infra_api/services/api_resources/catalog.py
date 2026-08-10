@@ -25,13 +25,18 @@ from ai_infra_api.schemas.api_resources import (
     ApiCredentialCreate,
     ApiCredentialRotate,
     ApiCredentialUpdate,
+    ApiProviderCreate,
     ApiProviderResponse,
+    ApiProviderUpdate,
     ApiUsageManualCreate,
     ApiUsageSummaryResponse,
 )
 from ai_infra_api.services.api_resources.adapters.base import ProviderContext
 from ai_infra_api.services.api_resources.adapters.generic_openai import ProviderRequestError
-from ai_infra_api.services.api_resources.adapters.registry import ADAPTERS, get_adapter
+from ai_infra_api.services.api_resources.adapters.registry import (
+    ADAPTERS,
+    get_adapter_for_provider,
+)
 from ai_infra_api.services.api_resources.encryption import CredentialEncryption, mask_credential
 from ai_infra_api.services.api_resources.network_policy import validate_external_base_url
 
@@ -55,6 +60,11 @@ def utc_now() -> datetime:
 async def ensure_builtin_providers(session: AsyncSession) -> None:
     existing = set((await session.scalars(select(ApiProvider.slug))).all())
     for adapter in ADAPTERS.values():
+        adapter_kind = (
+            "anthropic" if adapter.slug in {"anthropic", "claude-code"} else "openai-compatible"
+        )
+        credential_header = "x-api-key" if adapter_kind == "anthropic" else "authorization"
+        static_headers = {"anthropic-version": "2023-06-01"} if adapter_kind == "anthropic" else {}
         if adapter.slug not in existing:
             session.add(
                 ApiProvider(
@@ -62,6 +72,9 @@ async def ensure_builtin_providers(session: AsyncSession) -> None:
                     display_name=adapter.display_name,
                     provider_type="built_in",
                     default_base_url=adapter.default_base_url,
+                    adapter_kind=adapter_kind,
+                    credential_header=credential_header,
+                    static_headers=static_headers,
                     capabilities=adapter.capabilities.model_dump(),
                     is_enabled=True,
                 )
@@ -81,6 +94,43 @@ async def get_provider(session: AsyncSession, slug: str) -> ApiProvider:
     provider = await session.scalar(select(ApiProvider).where(ApiProvider.slug == slug))
     if provider is None:
         raise ApiResourceError("api_provider_not_found", "API provider was not found.", 404)
+    return provider
+
+
+async def create_provider(session: AsyncSession, payload: ApiProviderCreate) -> ApiProvider:
+    await ensure_builtin_providers(session)
+    if await session.scalar(select(ApiProvider.id).where(ApiProvider.slug == payload.slug)):
+        raise ApiResourceError("api_provider_duplicate", "API provider slug already exists.", 409)
+    provider = ApiProvider(
+        slug=payload.slug,
+        display_name=payload.display_name.strip(),
+        provider_type="custom",
+        default_base_url=payload.default_base_url,
+        adapter_kind=payload.adapter_kind,
+        credential_header=payload.credential_header.lower(),
+        static_headers=payload.static_headers,
+        capabilities=payload.capabilities.model_dump(),
+        is_enabled=True,
+    )
+    session.add(provider)
+    await session.commit()
+    return provider
+
+
+async def update_provider(
+    session: AsyncSession, provider: ApiProvider, payload: ApiProviderUpdate
+) -> ApiProvider:
+    if provider.provider_type != "custom":
+        raise ApiResourceError(
+            "api_provider_builtin_read_only", "Built-in providers are read-only."
+        )
+    values = payload.model_dump(exclude_unset=True)
+    if "credential_header" in values and values["credential_header"] is not None:
+        values["credential_header"] = values["credential_header"].lower()
+    for key, value in values.items():
+        setattr(provider, key, value)
+    await session.commit()
+    await session.refresh(provider)
     return provider
 
 
@@ -336,7 +386,12 @@ async def validate_credential(
     session: AsyncSession, credential: ApiCredential, settings: Settings
 ) -> ApiHealthCheck:
     account, provider = await get_account(session, credential.account_id)
-    adapter = get_adapter(provider.slug)
+    adapter = get_adapter_for_provider(provider)
+    if not provider.capabilities.get("credential_validation", False):
+        raise ApiResourceError(
+            "api_provider_capability_unsupported",
+            "Provider does not support credential validation.",
+        )
     base_url = await _validated_url(account.base_url, settings)
     encryption = CredentialEncryption(settings)
     context = ProviderContext(
@@ -344,6 +399,8 @@ async def validate_credential(
         credential=encryption.decrypt(account.id, credential.id, credential.encrypted_value),
         timeout_seconds=settings.api_resource_request_timeout_seconds,
         max_response_bytes=settings.api_resource_max_response_bytes,
+        credential_header=provider.credential_header,
+        static_headers=tuple(provider.static_headers.items()),
     )
     result = await adapter.validate_credential(context)
     checked_at = utc_now()
@@ -377,6 +434,14 @@ async def sync_models(
 ) -> ApiSyncRun:
     run = await _start_sync(session, account.id, "models", user)
     try:
+        adapter = get_adapter_for_provider(provider)
+        if not provider.capabilities.get("model_discovery", False) or not (
+            adapter.capabilities.model_discovery
+        ):
+            raise ApiResourceError(
+                "api_provider_capability_unsupported",
+                "Provider does not support model synchronization.",
+            )
         credential = await session.scalar(
             select(ApiCredential)
             .where(ApiCredential.account_id == account.id, ApiCredential.status == "active")
@@ -384,7 +449,6 @@ async def sync_models(
         )
         if credential is None:
             raise ApiResourceError("api_credential_required", "An active credential is required.")
-        adapter = get_adapter(provider.slug)
         base_url = await _validated_url(account.base_url, settings)
         encryption = CredentialEncryption(settings)
         models = await adapter.list_models(
@@ -395,6 +459,8 @@ async def sync_models(
                 ),
                 timeout_seconds=settings.api_resource_request_timeout_seconds,
                 max_response_bytes=settings.api_resource_max_response_bytes,
+                credential_header=provider.credential_header,
+                static_headers=tuple(provider.static_headers.items()),
             )
         )
         now = utc_now()
@@ -528,8 +594,10 @@ async def sync_usage(
         )
         if credential is None:
             raise ApiResourceError("api_credential_required", "An active credential is required.")
-        adapter = get_adapter(provider.slug)
-        if not adapter.capabilities.usage_sync:
+        adapter = get_adapter_for_provider(provider)
+        if not provider.capabilities.get("usage_sync", False) or not (
+            adapter.capabilities.usage_sync
+        ):
             raise ApiResourceError(
                 "api_provider_capability_unsupported",
                 "Provider does not support usage synchronization.",
@@ -545,6 +613,8 @@ async def sync_usage(
                 ),
                 timeout_seconds=settings.api_resource_request_timeout_seconds,
                 max_response_bytes=settings.api_resource_max_response_bytes,
+                credential_header=provider.credential_header,
+                static_headers=tuple(provider.static_headers.items()),
             ),
             period_start,
             period_end,

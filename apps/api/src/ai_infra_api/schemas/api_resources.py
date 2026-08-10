@@ -4,6 +4,24 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 
+def _validate_provider_headers(
+    credential_header: str | None, static_headers: dict[str, str] | None
+) -> None:
+    sensitive = ("authorization", "api-key", "token", "secret", "password", "credential")
+    if static_headers and any(
+        any(part in key.lower() for part in sensitive) for key in static_headers
+    ):
+        raise ValueError("static_headers cannot contain credential-like headers")
+    if credential_header is None or credential_header.lower() in {
+        "authorization",
+        "x-api-key",
+        "api-key",
+    }:
+        return
+    if any(part in credential_header.lower() for part in sensitive):
+        raise ValueError("credential_header is not allowed")
+
+
 class ProviderCapabilitiesResponse(BaseModel):
     credential_validation: bool
     model_discovery: bool
@@ -14,6 +32,47 @@ class ProviderCapabilitiesResponse(BaseModel):
     manual_usage_import: bool
 
 
+class ApiProviderCreate(BaseModel):
+    slug: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9][a-z0-9-]*$")
+    display_name: str = Field(min_length=1, max_length=128)
+    adapter_kind: str = Field(
+        default="openai-compatible", pattern=r"^(openai-compatible|anthropic)$"
+    )
+    default_base_url: str | None = Field(default=None, max_length=512)
+    credential_header: str = Field(default="authorization", min_length=1, max_length=128)
+    static_headers: dict[str, str] = Field(default_factory=dict, max_length=16)
+    capabilities: ProviderCapabilitiesResponse = Field(
+        default_factory=lambda: ProviderCapabilitiesResponse(
+            credential_validation=True,
+            model_discovery=True,
+            balance_sync=False,
+            usage_sync=False,
+            usage_by_model=False,
+            usage_by_credential=False,
+            manual_usage_import=True,
+        )
+    )
+
+    @model_validator(mode="after")
+    def validate_headers(self) -> "ApiProviderCreate":
+        _validate_provider_headers(self.credential_header, self.static_headers)
+        return self
+
+
+class ApiProviderUpdate(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=128)
+    default_base_url: str | None = Field(default=None, max_length=512)
+    credential_header: str | None = Field(default=None, min_length=1, max_length=128)
+    static_headers: dict[str, str] | None = Field(default=None, max_length=16)
+    capabilities: ProviderCapabilitiesResponse | None = None
+    is_enabled: bool | None = None
+
+    @model_validator(mode="after")
+    def validate_headers(self) -> "ApiProviderUpdate":
+        _validate_provider_headers(self.credential_header, self.static_headers)
+        return self
+
+
 class ApiProviderResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -22,6 +81,9 @@ class ApiProviderResponse(BaseModel):
     display_name: str
     provider_type: str
     default_base_url: str | None
+    adapter_kind: str
+    credential_header: str
+    static_headers: dict[str, str]
     capabilities: ProviderCapabilitiesResponse
     is_enabled: bool
 

@@ -30,7 +30,82 @@ async def test_api_resource_account_credentials_usage_and_permissions(
 
     providers = await client.get("/api/v1/api-resources/providers", headers=viewer_headers)
     assert providers.status_code == 200
-    assert {item["slug"] for item in providers.json()} == {"openai", "generic-openai"}
+    assert {item["slug"] for item in providers.json()} == {
+        "openai",
+        "codex",
+        "anthropic",
+        "claude-code",
+        "aliyun-bailian",
+        "generic-openai",
+    }
+    anthropic = next(item for item in providers.json() if item["slug"] == "anthropic")
+    assert anthropic["adapter_kind"] == "anthropic"
+    assert anthropic["credential_header"] == "x-api-key"
+    assert anthropic["static_headers"] == {"anthropic-version": "2023-06-01"}
+
+    provider_denied = await client.post(
+        "/api/v1/api-resources/providers",
+        headers=viewer_headers,
+        json={"slug": "viewer-provider", "display_name": "Denied"},
+    )
+    assert provider_denied.status_code == 403
+
+    custom_provider = await client.post(
+        "/api/v1/api-resources/providers",
+        headers=admin_headers,
+        json={
+            "slug": "internal-claude",
+            "display_name": "Internal Claude Gateway",
+            "adapter_kind": "anthropic",
+            "default_base_url": "https://8.8.4.4/v1",
+            "credential_header": "x-api-key",
+            "static_headers": {"anthropic-version": "2023-06-01"},
+            "capabilities": {
+                "credential_validation": True,
+                "model_discovery": True,
+                "balance_sync": False,
+                "usage_sync": False,
+                "usage_by_model": False,
+                "usage_by_credential": False,
+                "manual_usage_import": True,
+            },
+        },
+    )
+    assert custom_provider.status_code == 201, custom_provider.text
+    assert custom_provider.json()["provider_type"] == "custom"
+
+    updated_provider = await client.patch(
+        "/api/v1/api-resources/providers/internal-claude",
+        headers=admin_headers,
+        json={
+            "display_name": "Claude Gateway",
+            "is_enabled": False,
+            "capabilities": {
+                "credential_validation": True,
+                "model_discovery": True,
+                "balance_sync": False,
+                "usage_sync": True,
+                "usage_by_model": True,
+                "usage_by_credential": True,
+                "manual_usage_import": True,
+            },
+        },
+    )
+    assert updated_provider.status_code == 200, updated_provider.text
+    assert updated_provider.json()["display_name"] == "Claude Gateway"
+    assert updated_provider.json()["is_enabled"] is False
+    assert updated_provider.json()["capabilities"]["usage_sync"] is True
+
+    unsafe_provider = await client.post(
+        "/api/v1/api-resources/providers",
+        headers=admin_headers,
+        json={
+            "slug": "unsafe-provider",
+            "display_name": "Unsafe",
+            "static_headers": {"Authorization": "secret"},
+        },
+    )
+    assert unsafe_provider.status_code == 422
 
     denied = await client.post(
         "/api/v1/api-resources/accounts",

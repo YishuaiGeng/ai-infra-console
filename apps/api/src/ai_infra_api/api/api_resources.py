@@ -27,7 +27,9 @@ from ai_infra_api.schemas.api_resources import (
     ApiCredentialResponse,
     ApiCredentialRotate,
     ApiCredentialUpdate,
+    ApiProviderCreate,
     ApiProviderResponse,
+    ApiProviderUpdate,
     ApiSyncRequest,
     ApiSyncRunResponse,
     ApiUsageManualCreate,
@@ -42,6 +44,7 @@ from ai_infra_api.services.api_resources.catalog import (
     create_manual_balance,
     create_manual_model,
     create_manual_usage,
+    create_provider,
     get_account,
     get_credential,
     get_provider,
@@ -52,6 +55,7 @@ from ai_infra_api.services.api_resources.catalog import (
     sync_usage,
     update_account,
     update_credential,
+    update_provider,
     usage_summary,
     validate_credential,
 )
@@ -99,6 +103,42 @@ async def provider_detail(
     try:
         provider = await get_provider(session, provider_slug)
         await session.commit()
+        return ApiProviderResponse.model_validate(provider)
+    except ApiResourceError as error:
+        raise _error(error) from error
+
+
+@router.post("/providers", response_model=ApiProviderResponse, status_code=201)
+async def provider_create(
+    payload: ApiProviderCreate,
+    request: Request,
+    session: DatabaseSession,
+    admin: AdminUser,
+) -> ApiProviderResponse:
+    try:
+        provider = await create_provider(session, payload)
+        await _audit(
+            session, request, admin, "api_resource.provider.created", "api_provider", provider.id
+        )
+        return ApiProviderResponse.model_validate(provider)
+    except ApiResourceError as error:
+        raise _error(error) from error
+
+
+@router.patch("/providers/{provider_slug}", response_model=ApiProviderResponse)
+async def provider_patch(
+    provider_slug: str,
+    payload: ApiProviderUpdate,
+    request: Request,
+    session: DatabaseSession,
+    admin: AdminUser,
+) -> ApiProviderResponse:
+    try:
+        provider = await get_provider(session, provider_slug)
+        provider = await update_provider(session, provider, payload)
+        await _audit(
+            session, request, admin, "api_resource.provider.updated", "api_provider", provider.id
+        )
         return ApiProviderResponse.model_validate(provider)
     except ApiResourceError as error:
         raise _error(error) from error

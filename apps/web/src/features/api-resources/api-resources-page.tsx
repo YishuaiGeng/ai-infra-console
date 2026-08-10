@@ -10,15 +10,17 @@ import {
   Plus,
   RefreshCw,
   ServerCog,
+  Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import type { ApiAccount } from "@/lib/api/api-resources";
+import type { ApiAccount, ApiProvider } from "@/lib/api/api-resources";
 import {
   apiAccountSchema,
   apiBalanceSchema,
   apiCredentialSchema,
+  apiProviderSchema,
   apiSyncRunSchema,
   apiUsageSchema,
 } from "@/lib/api/api-resources";
@@ -98,6 +100,8 @@ export function ApiResourcesPage() {
   const session = useSession();
   const mutation = useApiResourceMutation();
   const [createOpen, setCreateOpen] = useState(false);
+  const [providerOpen, setProviderOpen] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<ApiProvider | null>(null);
   const [selected, setSelected] = useState<ApiAccount | null>(null);
   const isAdmin = session.data?.role === "admin";
   const costs = useMemo(
@@ -133,6 +137,49 @@ export function ApiResourcesPage() {
     }
   }
 
+  async function saveProvider(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    try {
+      const staticHeaders = JSON.parse(String(data.get("static_headers") || "{}")) as unknown;
+      if (!staticHeaders || Array.isArray(staticHeaders) || typeof staticHeaders !== "object") {
+        throw new Error("Static headers must be a JSON object");
+      }
+      const capabilities = {
+        credential_validation: data.has("credential_validation"),
+        model_discovery: data.has("model_discovery"),
+        balance_sync: data.has("balance_sync"),
+        usage_sync: data.has("usage_sync"),
+        usage_by_model: data.has("usage_by_model"),
+        usage_by_credential: data.has("usage_by_credential"),
+        manual_usage_import: data.has("manual_usage_import"),
+      };
+      const shared = {
+        display_name: data.get("display_name"),
+        default_base_url: data.get("default_base_url") || null,
+        credential_header: data.get("credential_header"),
+        static_headers: staticHeaders,
+        capabilities,
+        is_enabled: data.has("is_enabled"),
+      };
+      await mutation.mutateAsync({
+        path: editingProvider ? `providers/${editingProvider.slug}` : "providers",
+        method: editingProvider ? "PATCH" : "POST",
+        payload: editingProvider ? shared : {
+          ...shared,
+          slug: data.get("slug"),
+          adapter_kind: data.get("adapter_kind"),
+        },
+        schema: apiProviderSchema,
+      });
+      setProviderOpen(false);
+      setEditingProvider(null);
+      toast.success(editingProvider ? "Provider updated" : "Provider created");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save provider");
+    }
+  }
+
   if (accounts.isLoading || providers.isLoading) {
     return <PageContainer><PageHeader title="API Resources" description="External API inventory, credentials, models, balance and usage." /><TableLoadingSkeleton /></PageContainer>;
   }
@@ -152,6 +199,31 @@ export function ApiResourcesPage() {
         <SummaryCard label="Requests recorded" value={compact(summary.data?.request_count ?? 0)} detail="Provider or manual snapshots" icon={ServerCog} />
         <SummaryCard label="Tokens recorded" value={compact(summary.data?.total_tokens ?? 0)} detail={`${compact(summary.data?.input_tokens ?? 0)} input · ${compact(summary.data?.output_tokens ?? 0)} output`} icon={Boxes} />
         <SummaryCard label="Tracked cost" value={costs} detail="Currencies remain separated" icon={CircleDollarSign} />
+      </div>
+
+      <div className="mb-5 rounded-lg border bg-card p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold">Provider adapters</h2>
+            <p className="text-xs text-muted-foreground">Official OpenAI, Codex, Anthropic, Claude Code, Alibaba Bailian, and custom compatible services.</p>
+          </div>
+          {isAdmin && <Button variant="outline" size="sm" onClick={() => { setEditingProvider(null); setProviderOpen(true); }}><Settings2 /> Add provider</Button>}
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {providers.data?.map((provider) => (
+            <button
+              key={provider.slug}
+              type="button"
+              disabled={!isAdmin || provider.provider_type !== "custom"}
+              onClick={() => { setEditingProvider(provider); setProviderOpen(true); }}
+              className="rounded-md border p-3 text-left disabled:cursor-default"
+            >
+              <div className="flex items-center justify-between gap-2"><p className="font-medium">{provider.display_name}</p><Badge variant={provider.is_enabled ? "secondary" : "outline"}>{provider.is_enabled ? "Enabled" : "Disabled"}</Badge></div>
+              <p className="mt-1 font-mono text-xs text-muted-foreground">{provider.slug} · {provider.adapter_kind}</p>
+              <p className="mt-2 truncate text-xs text-muted-foreground">{provider.default_base_url ?? "Account-specific base URL"}</p>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="mb-3 flex items-center justify-between">
@@ -188,9 +260,55 @@ export function ApiResourcesPage() {
       )}
 
       <CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} providers={providers.data ?? []} pending={mutation.isPending} onSubmit={createAccount} />
+      <ProviderDialog key={editingProvider?.slug ?? "new"} open={providerOpen} onOpenChange={(open) => { setProviderOpen(open); if (!open) setEditingProvider(null); }} provider={editingProvider} pending={mutation.isPending} onSubmit={saveProvider} />
       <AccountDialog account={selected} onOpenChange={(open) => !open && setSelected(null)} isAdmin={isAdmin} />
     </PageContainer>
   );
+}
+
+function ProviderDialog({ open, onOpenChange, provider, pending, onSubmit }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  provider: ApiProvider | null;
+  pending: boolean;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const capabilities = provider?.capabilities;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <form onSubmit={onSubmit}>
+          <DialogHeader><DialogTitle>{provider ? "Edit custom provider" : "Add custom provider"}</DialogTitle><DialogDescription>Configure discovery/authentication metadata only. Put secrets on individual API accounts, never in static headers.</DialogDescription></DialogHeader>
+          <div className="grid gap-4 py-4 sm:grid-cols-2">
+            <Field label="Slug"><Input name="slug" defaultValue={provider?.slug} disabled={Boolean(provider)} required pattern="[a-z0-9][a-z0-9-]*" /></Field>
+            <Field label="Display name"><Input name="display_name" defaultValue={provider?.display_name} required /></Field>
+            <Field label="Adapter kind"><select name="adapter_kind" defaultValue={provider?.adapter_kind ?? "openai-compatible"} disabled={Boolean(provider)} className="h-8 w-full rounded-lg border bg-background px-2 text-sm"><option value="openai-compatible">OpenAI compatible</option><option value="anthropic">Anthropic compatible</option></select></Field>
+            <Field label="Credential header"><Input name="credential_header" defaultValue={provider?.credential_header ?? "authorization"} required /></Field>
+            <Field label="Default base URL" className="sm:col-span-2"><Input name="default_base_url" type="url" defaultValue={provider?.default_base_url ?? ""} placeholder="https://api.example.com/v1" /></Field>
+            <Field label="Static non-secret headers (JSON)" className="sm:col-span-2"><Textarea name="static_headers" defaultValue={JSON.stringify(provider?.static_headers ?? {}, null, 2)} className="min-h-24 font-mono text-xs" /></Field>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Capabilities</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Capability name="credential_validation" label="Credential validation" checked={capabilities?.credential_validation ?? true} />
+                <Capability name="model_discovery" label="Model discovery" checked={capabilities?.model_discovery ?? true} />
+                <Capability name="usage_sync" label="Provider usage sync" checked={capabilities?.usage_sync ?? false} />
+                <Capability name="balance_sync" label="Provider balance sync" checked={capabilities?.balance_sync ?? false} />
+                <Capability name="usage_by_model" label="Usage grouped by model" checked={capabilities?.usage_by_model ?? false} />
+                <Capability name="usage_by_credential" label="Usage grouped by credential" checked={capabilities?.usage_by_credential ?? false} />
+                <Capability name="manual_usage_import" label="Manual usage snapshots" checked={capabilities?.manual_usage_import ?? true} />
+                <Capability name="is_enabled" label="Provider enabled" checked={provider?.is_enabled ?? true} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save provider"}</Button></DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Capability({ name, label, checked }: { name: string; label: string; checked: boolean }) {
+  return <label className="flex items-center gap-2 rounded-md border p-2 text-sm"><input type="checkbox" name={name} defaultChecked={checked} className="size-4" />{label}</label>;
 }
 
 function CreateAccountDialog({ open, onOpenChange, providers, pending, onSubmit }: {

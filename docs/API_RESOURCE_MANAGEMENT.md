@@ -14,7 +14,7 @@
 
 该模块不是 API 网关，不接管正常业务请求，不进行请求转发、协议转换、负载均衡或二级 Key 分发。
 
-当前实现覆盖 Provider Registry、Account、AES-256-GCM Credential 加密、Credential 验证与轮换、模型同步、人工模型/余额/用量快照、OpenAI 组织级 Usage/Costs 同步、同步历史、审计、Admin/Viewer 权限、SSRF 策略、BFF 和控制台页面。Generic OpenAI-compatible Provider 仅声明 Credential 验证与模型发现能力，不虚构余额或用量接口。
+当前实现覆盖 Provider Registry、内置与自定义 Provider 管理、Account、AES-256-GCM Credential 加密、Credential 验证与轮换、模型同步、人工模型/余额/用量快照、OpenAI 组织级 Usage/Costs 同步、Anthropic 组织级 Usage 同步、同步历史、审计、Admin/Viewer 权限、SSRF 策略、BFF 和控制台页面。内置 Provider 包括 OpenAI、OpenAI Codex、Anthropic、Claude Code、阿里云百炼和 Generic OpenAI-compatible；自定义 Provider 支持 OpenAI-compatible 与 Anthropic-compatible 协议。未确认官方余额或账单接口的平台不会虚构同步能力。
 
 ## 2. 背景
 
@@ -462,21 +462,19 @@ class ProviderCapabilities(BaseModel):
 
 前端必须根据能力声明显示操作，不得假设每个平台都支持余额和用量 API。
 
-### 12.3 首版 Adapter
+### 12.3 已实现 Adapter
 
-建议实施顺序：
+| Provider | 协议与认证 | 自动能力 |
+|---|---|---|
+| `openai` | OpenAI API，Bearer Token | Credential 验证、模型发现、组织 Usage/Costs |
+| `codex` | OpenAI API，Bearer Token | 与 OpenAI API 账号能力一致，用于单独登记 Codex 资源 |
+| `anthropic` | Anthropic API，`x-api-key` + `anthropic-version` | Credential 验证、模型发现、组织 Usage |
+| `claude-code` | Anthropic API，`x-api-key` + `anthropic-version` | 与 Anthropic API 账号能力一致，用于单独登记 Claude Code 资源 |
+| `aliyun-bailian` | DashScope OpenAI-compatible，Bearer Token | Credential 验证、模型发现 |
+| `generic-openai` | 自定义 OpenAI-compatible，Bearer Token | Credential 验证、模型发现 |
+| Custom Provider | OpenAI-compatible 或 Anthropic-compatible | 按管理员显式配置的 Capability 执行 |
 
-1. `generic-openai`
-   - 支持 Base URL、Bearer Token、`/models` 检测。
-   - 不承诺余额和用量同步。
-2. `openai`
-   - 独立适配 Credential 验证、模型发现和可用的组织用量能力。
-3. `anthropic`
-   - 独立认证头和模型能力。
-4. `aliyun-bailian`
-   - 面向当前阿里云资源需求。
-5. 其他 Provider
-   - 按实际账号优先级增加，不提前做空壳 Adapter。
+自定义 Provider 可配置默认 Base URL、Credential Header、非敏感静态 Header、Capability 和启用状态。Credential 必须单独保存到 Account 的加密 Credential 中；静态 Header 禁止包含 Authorization、Token、Secret、Password 等凭据类字段。
 
 具体供应商接口可能变化，Adapter 必须有独立测试、超时和错误映射，不应把供应商响应直接暴露给前端。
 
@@ -1040,6 +1038,13 @@ api_usage_import_invalid
 - 自动同步失败可观察、可重试、可审计。
 - 导出不包含 Credential。
 - 通知去重有效。
+
+### 25.1 当前完成状态
+
+- Phase 10A：已完成。
+- Phase 10B：核心模型发现、验证、健康记录和同步历史已完成。
+- Phase 10C：人工快照、OpenAI Usage/Costs、Anthropic Usage 和能力限制展示已完成；账单文件导入仍属于后续增强。
+- Phase 10D：Provider 扩展与控制台管理已完成；定时策略、预算通知、CSV 导出和更丰富图表仍属于后续增强。
 
 ## 26. 完成定义
 

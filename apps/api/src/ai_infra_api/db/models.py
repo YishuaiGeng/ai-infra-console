@@ -478,6 +478,9 @@ class ApiProvider(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     display_name: Mapped[str] = mapped_column(String(128))
     provider_type: Mapped[str] = mapped_column(String(32), default="built_in")
     default_base_url: Mapped[str | None] = mapped_column(String(512))
+    adapter_kind: Mapped[str] = mapped_column(String(32), default="openai-compatible")
+    credential_header: Mapped[str] = mapped_column(String(128), default="authorization")
+    static_headers: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
     capabilities: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
